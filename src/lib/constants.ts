@@ -5,7 +5,7 @@ export const DEFAULT_META = {
     "Compare sustainability and traceability tooling, understand feature gaps, and evaluate implementation readiness.",
 };
 
-export const COMPARE_LIMIT = 3;
+export const COMPARE_LIMIT = 12;
 
 export const FEATURE_TAGS = [
   "Supplier Network",

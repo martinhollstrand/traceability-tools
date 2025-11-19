@@ -1,31 +1,110 @@
 @import "tailwindcss";
 
-:root {
-  --background: 210 28% 97%;
-  --surface: 0 0% 100%;
-  --surface-strong: 219 20% 94%;
-  --foreground: 222 47% 11%;
-  --muted: 215 16% 47%;
-  --border: 213 28% 88%;
-  --primary: 201 100% 40%;
-  --primary-foreground: 0 0% 100%;
-  --accent: 44 92% 58%;
-  --radius-sm: 0.5rem;
-  --radius-md: 1rem;
-  --radius-lg: 2.5rem;
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Core surfaces */
+  --background: 222 67% 99%;
+  --surface: 222 100% 100%;
+  --surface-strong: 226 72% 94%;
+
+  /* Typography */
+  --foreground: 234 43% 12%;
+  --muted: 226 17% 46%;
+  --muted-foreground: 226 17% 46%;
+
+  /* Brand */
+  --primary: 254 95% 66%;
+  --primary-foreground: 220 83% 98%;
+  --accent: 190 94% 52%;
+  --accent-foreground: 224 47% 12%;
+  --secondary: 226 70% 96%;
+  --secondary-foreground: 234 43% 18%;
+
+  /* State */
+  --destructive: 358 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 224 30% 86%;
+  --input: 224 30% 86%;
+  --ring: 190 94% 52%;
+
+  /* Radius tokens (used by Tailwind theme + utilities) */
+  --radius: 1rem;
+  --radius-sm: 0.6rem;
+  --radius-md: 1.25rem;
+  --radius-lg: 3rem;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Core surfaces */
+  --background: 233 64% 6%;
+  --surface: 232 52% 10%;
+  --surface-strong: 230 48% 16%;
+
+  /* Typography */
+  --foreground: 210 60% 96%;
+  --muted: 218 20% 68%;
+  --muted-foreground: 218 20% 68%;
+
+  /* Brand */
+  --primary: 254 90% 72%;
+  --primary-foreground: 234 43% 12%;
+  --accent: 188 94% 60%;
+  --accent-foreground: 233 64% 6%;
+  --secondary: 232 40% 18%;
+  --secondary-foreground: 210 60% 96%;
+
+  /* State */
+  --destructive: 3 76% 62%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 230 35% 28%;
+  --input: 230 35% 28%;
+  --ring: 188 94% 60%;
+
+  /* Radius tokens */
+  --radius: 1rem;
+  --radius-sm: 0.6rem;
+  --radius-md: 1.25rem;
+  --radius-lg: 3rem;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: 220 18% 8%;
-    --surface: 222 26% 12%;
-    --surface-strong: 223 24% 16%;
-    --foreground: 213 31% 91%;
-    --muted: 215 16% 72%;
-    --border: 215 15% 30%;
-    --primary: 199 89% 60%;
-    --primary-foreground: 0 0% 100%;
-    --accent: 32 100% 50%;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    /* Core surfaces */
+    --background: 233 64% 6%;
+    --surface: 232 52% 10%;
+    --surface-strong: 230 48% 16%;
+
+    /* Typography */
+    --foreground: 210 60% 96%;
+    --muted: 218 20% 68%;
+    --muted-foreground: 218 20% 68%;
+
+    /* Brand */
+    --primary: 254 90% 72%;
+    --primary-foreground: 234 43% 12%;
+    --accent: 188 94% 60%;
+    --accent-foreground: 233 64% 6%;
+    --secondary: 232 40% 18%;
+    --secondary-foreground: 210 60% 96%;
+
+    /* State */
+    --destructive: 3 76% 62%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 230 35% 28%;
+    --input: 230 35% 28%;
+    --ring: 188 94% 60%;
+
+    /* Radius tokens */
+    --radius: 1rem;
+    --radius-sm: 0.6rem;
+    --radius-md: 1.25rem;
+    --radius-lg: 3rem;
   }
 }
 
@@ -36,7 +115,7 @@
 
   body {
     min-height: 100vh;
-    background-color: hsl(var(--background));
+    background: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family:
       var(--font-geist-sans),
@@ -58,27 +137,24 @@
     text-wrap: balance;
   }
 
-  .btn-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
-    color: hsl(var(--primary-foreground));
-    border-radius: 9999px;
-    padding: 0.75rem 1.5rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: opacity 200ms ease;
+  .text-gradient {
+    background-image: linear-gradient(120deg, hsl(var(--primary)), hsl(var(--accent)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
-  .btn-primary:hover {
-    opacity: 0.9;
+  .bg-aurora {
+    background-image:
+      radial-gradient(circle at 18% 20%, hsl(var(--accent) / 0.4), transparent 52%),
+      radial-gradient(circle at 78% 8%, hsl(var(--primary) / 0.35), transparent 48%),
+      radial-gradient(circle at 60% 95%, hsl(var(--primary) / 0.22), transparent 58%),
+      linear-gradient(180deg, hsl(var(--background)), hsl(var(--surface)));
   }
 
-  .surface-card {
-    background-color: hsl(var(--surface));
-    border-radius: var(--radius-lg);
-    border: 1px solid hsl(var(--border));
-    box-shadow: 0 20px 80px rgba(15, 23, 42, 0.08);
+  .shadow-glow {
+    box-shadow:
+      0 1px 3px rgba(15, 23, 42, 0.08),
+      0 26px 70px -30px hsl(var(--primary) / 0.55);
   }
 }

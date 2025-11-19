@@ -79,6 +79,8 @@ export async function revalidateToolsTag(ids?: string[]) {
 }
 
 function mapToolRow(row: typeof toolsTable.$inferSelect): Tool {
+  const metadata = (row.metadata as Record<string, unknown>) ?? {};
+
   return {
     id: row.id,
     name: row.name,
@@ -91,13 +93,12 @@ function mapToolRow(row: typeof toolsTable.$inferSelect): Tool {
     tags: (row.highlights as string[]) ?? [],
     features: (row.highlights as string[]) ?? [],
     stats: {
-      customers: 0,
-      coverage: 0,
-      contracts: 0,
-    }, // stats not in new schema, using defaults
-    metadata: (row.metadata as Record<string, unknown>) ?? undefined,
+      ...extractStats(metadata),
+    },
+    metadata,
     capabilities: (row.capabilities as Record<string, unknown>) ?? undefined,
     comparisonData: (row.comparisonData as Record<string, unknown>) ?? undefined,
+    featureScore: (row.featureScore as Record<string, number>) ?? undefined,
     updatedAt: row.updatedAt?.toISOString() ?? new Date().toISOString(),
   };
 }
@@ -122,4 +123,36 @@ function mapReportRow(row: typeof reportMetadataTable.$inferSelect): ReportMetad
     highlights,
     metadata: previewData as ReportMetadata["metadata"],
   };
+}
+
+function extractStats(
+  metadata: Record<string, unknown>,
+): Pick<Tool["stats"], "customers" | "coverage" | "contracts"> {
+  const rawStats = (metadata as { stats?: unknown }).stats;
+
+  if (!rawStats || typeof rawStats !== "object") {
+    return { customers: 0, coverage: 0, contracts: 0 };
+  }
+
+  const stats = rawStats as Record<string, unknown>;
+
+  return {
+    customers: normalizeNonNegativeInteger(stats.customers),
+    coverage: normalizeCoverage(stats.coverage),
+    contracts: normalizeNonNegativeInteger(stats.contracts),
+  };
+}
+
+function normalizeNonNegativeInteger(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  return Math.round(Math.max(0, numeric));
+}
+
+function normalizeCoverage(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  if (numeric <= 0) return 0;
+  if (numeric >= 1) return 1;
+  return Number(numeric.toFixed(4));
 }

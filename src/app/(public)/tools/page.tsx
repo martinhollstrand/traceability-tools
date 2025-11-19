@@ -1,6 +1,7 @@
 import { listTools } from "@/server/data/tools";
 import { FilterBar } from "@/components/tools/filter-bar";
 import { ToolTable } from "@/components/tools/tool-table";
+import { COMPARE_LIMIT } from "@/lib/constants";
 
 export default async function ToolsPage({
   searchParams,
@@ -28,7 +29,8 @@ export default async function ToolsPage({
           </p>
           <h1 className="text-3xl font-semibold">Traceability & ESG tools</h1>
           <p className="text-muted-foreground text-sm">
-            {tools.length} tools match your filters. Select up to 3 to compare in detail.
+            {tools.length} tools match your filters. Select up to {COMPARE_LIMIT} to
+            compare in detail.
           </p>
         </div>
         <ToolTable tools={tools} />

@@ -5,9 +5,20 @@ import { generateText } from "ai";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
-const openai = createOpenAI({
-  apiKey: env.AI_GATEWAY_API_KEY,
-});
+const DISABLED_KEYS = new Set(
+  ["disabled", "skip", "dev-placeholder-key", "local-dev", "test-ai-key"].map((key) =>
+    key.toLowerCase(),
+  ),
+);
+
+const gatewayKey = env.AI_GATEWAY_API_KEY.trim();
+const isAiGatewayEnabled = !DISABLED_KEYS.has(gatewayKey.toLowerCase());
+
+const openai = isAiGatewayEnabled
+  ? createOpenAI({
+      apiKey: gatewayKey,
+    })
+  : null;
 
 export async function buildComparisonSummary(
   tools: Array<{ name: string; summary: string }>,
@@ -19,6 +30,11 @@ export async function buildComparisonSummary(
   ].join("\n");
 
   try {
+    if (!openai) {
+      logger.info("AI summary skipped: gateway disabled for this environment");
+      return "AI summary is disabled in this environment.";
+    }
+
     const result = await generateText({
       model: openai(env.AI_MODEL),
       prompt: `${prompt}\n\nTools:\n${tools
