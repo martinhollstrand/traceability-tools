@@ -1,0 +1,16 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: postgres-traceabilitytools
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: db
+    volumes:
+      - postgres-traceabilitytools-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres-traceabilitytools-data:

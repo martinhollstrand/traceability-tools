@@ -1,4 +1,5 @@
 <!-- a131d716-5312-4efe-9cfc-221efa0013d7 6aa545a9-f495-420e-8bfc-d9118fea215b -->
+
 # Implementation Plan for traceabilitytools.com
 
 ## Architecture & Tooling
@@ -66,7 +67,7 @@
 
 ### To-dos
 
-- [ ] Bootstrap Next.js 15 app, configs, shared tooling
+- [x] Bootstrap Next.js 15 app, configs, shared tooling
 - [ ] Define Drizzle schema, migrations, seed utilities
 - [ ] Implement public pages and comparison flow
 - [ ] Build admin auth, data mgmt, excel import

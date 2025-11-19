@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+:root {
+  --background: 210 28% 97%;
+  --surface: 0 0% 100%;
+  --surface-strong: 219 20% 94%;
+  --foreground: 222 47% 11%;
+  --muted: 215 16% 47%;
+  --border: 213 28% 88%;
+  --primary: 201 100% 40%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 44 92% 58%;
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 2.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 220 18% 8%;
+    --surface: 222 26% 12%;
+    --surface-strong: 223 24% 16%;
+    --foreground: 213 31% 91%;
+    --muted: 215 16% 72%;
+    --border: 215 15% 30%;
+    --primary: 199 89% 60%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 32 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family:
+      var(--font-geist-sans),
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    color: hsl(var(--primary-foreground));
+    border-radius: 9999px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: opacity 200ms ease;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+  }
+
+  .surface-card {
+    background-color: hsl(var(--surface));
+    border-radius: var(--radius-lg);
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 20px 80px rgba(15, 23, 42, 0.08);
+  }
+}
