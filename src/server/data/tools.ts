@@ -53,14 +53,17 @@ export const getToolBySlug = cache(async (slug: string) => {
   return tool ? mapToolRow(tool) : null;
 });
 
-export const getReportByTool = cache(async (): Promise<ReportMetadata | null> => {
-  const [report] = await db
-    .select()
-    .from(reportMetadataTable)
-    .orderBy(asc(reportMetadataTable.updatedAt))
-    .limit(1);
-  return report ? mapReportRow(report) : null;
-});
+export const getReportByTool = cache(
+  async (toolId: string): Promise<ReportMetadata | null> => {
+    const [report] = await db
+      .select()
+      .from(reportMetadataTable)
+      .where(eq(reportMetadataTable.id, toolId))
+      .orderBy(asc(reportMetadataTable.updatedAt))
+      .limit(1);
+    return report ? mapReportRow(report) : null;
+  },
+);
 
 export const getComparisonDataset = cache(async (ids: string[]): Promise<Tool[]> => {
   if (!ids.length) return [];
