@@ -17,6 +17,8 @@ export const toolSchema = z.object({
     contracts: z.number().int().nonnegative(),
   }),
   metadata: z.record(z.any()).optional(),
+  capabilities: z.record(z.any()).optional(),
+  comparisonData: z.record(z.any()).optional(),
   updatedAt: z.string(),
 });
 

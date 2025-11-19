@@ -42,9 +42,7 @@ export const getReportMetadata = cache(async (): Promise<ReportMetadataPayload> 
       updatedAt: row.updatedAt?.toISOString(),
     };
   } catch (error) {
-    logger.warn("Using fallback report metadata", {
-      error: (error as Error).message,
-    });
+    logger.warn({ error: (error as Error).message }, "Using fallback report metadata");
     return {
       title: mockReportMetadata.title,
       ingress: mockReportMetadata.ingress,

@@ -16,3 +16,8 @@ if (!globalForDb.connection) {
 
 export const db = drizzle(globalForDb.connection, { schema });
 export type DbClient = typeof db;
+
+// Export getDb function for compatibility with existing code
+export function getDb() {
+  return db;
+}

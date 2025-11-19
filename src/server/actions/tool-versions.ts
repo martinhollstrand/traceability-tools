@@ -24,7 +24,7 @@ export async function uploadExcelAction(
   _prev: UploadExcelState,
   formData: FormData,
 ): Promise<UploadExcelState> {
-  requireAdminSession();
+  await requireAdminSession();
 
   const raw = {
     filename: formData.get("filename"),
@@ -75,7 +75,7 @@ const activateSchema = z.object({
 });
 
 export async function activateVersionAction(formData: FormData) {
-  requireAdminSession();
+  await requireAdminSession();
   const parsed = activateSchema.safeParse({ versionId: formData.get("versionId") });
   if (!parsed.success) {
     return;

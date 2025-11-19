@@ -13,7 +13,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing Excel file" }, { status: 400 });
   }
 
-  if (file.size > env.EXCEL_UPLOAD_MAX_BYTES) {
+  const maxBytes = parseInt(env.EXCEL_UPLOAD_MAX_MB, 10) * 1024 * 1024;
+  if (file.size > maxBytes) {
     return NextResponse.json({ error: "File too large" }, { status: 400 });
   }
 

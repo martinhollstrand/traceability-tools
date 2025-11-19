@@ -35,11 +35,11 @@ export async function loginAction(
     };
   }
 
-  setAdminSession();
+  await setAdminSession();
   redirect("/admin");
 }
 
 export async function logoutAction() {
-  clearAdminSession();
+  await clearAdminSession();
   redirect("/login");
 }

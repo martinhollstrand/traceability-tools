@@ -9,7 +9,8 @@ const adminNav = [
 ];
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  await requireAdmin(headers());
+  const headersList = await headers();
+  await requireAdmin(headersList);
 
   return (
     <div className="grid min-h-screen grid-cols-[220px,1fr] bg-slate-950 text-slate-50">

@@ -25,8 +25,10 @@ export async function POST(request: Request) {
     category: parsed.data.category ?? "",
     summary: parsed.data.summary ?? "",
     website: parsed.data.website ?? "",
-    logoUrl: parsed.data.logoUrl,
-    features: parsed.data.tags ?? [],
+    highlights: parsed.data.tags ?? [],
+    capabilities: parsed.data.capabilities,
+    comparisonData: parsed.data.comparisonData,
+    metadata: parsed.data.metadata,
   });
   return NextResponse.json({ ok: true }, { status: 201 });
 }

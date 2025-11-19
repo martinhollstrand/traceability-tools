@@ -22,7 +22,7 @@ export async function saveReportAction(
   _prev: ReportState,
   formData: FormData,
 ): Promise<ReportState> {
-  requireAdminSession();
+  await requireAdminSession();
 
   const raw = Object.fromEntries(formData) as Record<string, string>;
   const parsed = reportSchema.safeParse(raw);

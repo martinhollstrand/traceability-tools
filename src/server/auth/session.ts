@@ -9,8 +9,9 @@ export type AdminSession = {
 
 const getAccessKey = () => process.env.ADMIN_ACCESS_KEY ?? "dev-admin";
 
-export const requireAdminSession = (): AdminSession => {
-  const sessionCookie = cookies().get(SESSION_COOKIE);
+export const requireAdminSession = async (): Promise<AdminSession> => {
+  const cookiesList = await cookies();
+  const sessionCookie = cookiesList.get(SESSION_COOKIE);
   const accessKey = getAccessKey();
 
   if (!sessionCookie || sessionCookie.value !== accessKey) {
@@ -22,9 +23,10 @@ export const requireAdminSession = (): AdminSession => {
   };
 };
 
-export const setAdminSession = () => {
+export const setAdminSession = async () => {
   const accessKey = getAccessKey();
-  cookies().set(SESSION_COOKIE, accessKey, {
+  const cookiesList = await cookies();
+  cookiesList.set(SESSION_COOKIE, accessKey, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -33,6 +35,7 @@ export const setAdminSession = () => {
   });
 };
 
-export const clearAdminSession = () => {
-  cookies().delete(SESSION_COOKIE);
+export const clearAdminSession = async () => {
+  const cookiesList = await cookies();
+  cookiesList.delete(SESSION_COOKIE);
 };

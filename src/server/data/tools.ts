@@ -3,9 +3,8 @@ import "server-only";
 import { and, asc, desc, eq, ilike, inArray } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "@/server/db";
-import { reportMetadata, tools } from "@/server/db/schema";
-import { CACHE_TAGS } from "@/lib/constants";
-import { revalidateTag } from "next/cache";
+import { reportMetadataTable, toolsTable } from "@/server/db/schema";
+import { revalidatePath } from "next/cache";
 import type { Tool } from "@/lib/validators/tool";
 import type { ReportMetadata } from "@/lib/validators/report";
 
@@ -17,21 +16,21 @@ type ToolFilters = {
 
 export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]> => {
   const { query, categories, tags } = filters;
-  const conditions = [eq(tools.isActive, true)];
+  const conditions = [eq(toolsTable.status, "published")];
 
   if (query) {
-    conditions.push(ilike(tools.name, `%${query}%`));
+    conditions.push(ilike(toolsTable.name, `%${query}%`));
   }
 
   if (categories?.length) {
-    conditions.push(inArray(tools.category, categories));
+    conditions.push(inArray(toolsTable.category, categories));
   }
 
   const rows = await db
     .select()
-    .from(tools)
+    .from(toolsTable)
     .where(and(...conditions))
-    .orderBy(desc(tools.updatedAt));
+    .orderBy(desc(toolsTable.updatedAt));
 
   const normalized = rows.map(mapToolRow);
 
@@ -46,57 +45,78 @@ export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]
 });
 
 export const getToolBySlug = cache(async (slug: string) => {
-  const [tool] = await db.select().from(tools).where(eq(tools.slug, slug)).limit(1);
+  const [tool] = await db
+    .select()
+    .from(toolsTable)
+    .where(eq(toolsTable.slug, slug))
+    .limit(1);
   return tool ? mapToolRow(tool) : null;
 });
 
-export const getReportByTool = cache(
-  async (toolId: string): Promise<ReportMetadata | null> => {
-    const [report] = await db
-      .select()
-      .from(reportMetadata)
-      .where(eq(reportMetadata.toolId, toolId))
-      .orderBy(asc(reportMetadata.updatedAt))
-      .limit(1);
-    return report ? mapReportRow(report) : null;
-  },
-);
+export const getReportByTool = cache(async (): Promise<ReportMetadata | null> => {
+  const [report] = await db
+    .select()
+    .from(reportMetadataTable)
+    .orderBy(asc(reportMetadataTable.updatedAt))
+    .limit(1);
+  return report ? mapReportRow(report) : null;
+});
 
 export const getComparisonDataset = cache(async (ids: string[]): Promise<Tool[]> => {
   if (!ids.length) return [];
-  const rows = await db.select().from(tools).where(inArray(tools.id, ids));
+  const rows = await db.select().from(toolsTable).where(inArray(toolsTable.id, ids));
   return rows.map(mapToolRow);
 });
 
 export async function revalidateToolsTag(ids?: string[]) {
-  revalidateTag(ids?.length ? CACHE_TAGS.comparison(ids) : CACHE_TAGS.tools);
+  revalidatePath("/tools");
+  if (ids?.length) {
+    revalidatePath(`/compare?ids=${ids.join(",")}`);
+  }
 }
 
-function mapToolRow(row: typeof tools.$inferSelect): Tool {
+function mapToolRow(row: typeof toolsTable.$inferSelect): Tool {
   return {
     id: row.id,
     name: row.name,
     slug: row.slug,
-    vendor: row.vendor,
-    category: row.category,
-    summary: row.summary,
-    website: row.website,
-    logoUrl: row.logoUrl ?? undefined,
-    tags: (row.features as string[]) ?? [],
-    features: (row.features as string[]) ?? [],
-    stats: row.stats as Tool["stats"],
-    metadata: row.metadata ?? undefined,
-    updatedAt: row.updatedAt?.toISOString?.() ?? new Date().toISOString(),
+    vendor: row.vendor ?? "",
+    category: row.category ?? "",
+    summary: row.summary ?? "",
+    website: row.website ?? "",
+    logoUrl: undefined, // logoUrl not in new schema
+    tags: (row.highlights as string[]) ?? [],
+    features: (row.highlights as string[]) ?? [],
+    stats: {
+      customers: 0,
+      coverage: 0,
+      contracts: 0,
+    }, // stats not in new schema, using defaults
+    metadata: (row.metadata as Record<string, unknown>) ?? undefined,
+    capabilities: (row.capabilities as Record<string, unknown>) ?? undefined,
+    comparisonData: (row.comparisonData as Record<string, unknown>) ?? undefined,
+    updatedAt: row.updatedAt?.toISOString() ?? new Date().toISOString(),
   };
 }
 
-function mapReportRow(row: typeof reportMetadata.$inferSelect): ReportMetadata {
+function mapReportRow(row: typeof reportMetadataTable.$inferSelect): ReportMetadata {
+  const previewData = (row.previewData as Record<string, unknown>) ?? {};
+  const keyFindings = (row.keyFindings as string[]) ?? [];
+  // Transform string array to highlights format
+  const highlights: ReportMetadata["highlights"] = keyFindings.map((finding) => {
+    // Try to parse as "label: detail" format, or use the string as both
+    const parts = finding.split(": ");
+    return parts.length === 2
+      ? { label: parts[0]!, detail: parts[1]! }
+      : { label: finding, detail: finding };
+  });
+
   return {
     id: row.id,
-    toolId: row.toolId,
+    toolId: "", // toolId not in new schema - reports are standalone
     title: row.title,
     pdfUrl: row.pdfUrl ?? undefined,
-    highlights: (row.highlights as ReportMetadata["highlights"]) ?? [],
-    metadata: row.metadata ?? undefined,
+    highlights,
+    metadata: previewData as ReportMetadata["metadata"],
   };
 }
