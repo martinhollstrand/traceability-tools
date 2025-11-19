@@ -1,12 +1,13 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { loginAction, type LoginState } from "@/server/actions/auth";
 
 const initialState: LoginState = { success: false };
 
 export function LoginForm() {
-  const [state, formAction] = useFormState(loginAction, initialState);
+  const [state, formAction] = useActionState(loginAction, initialState);
 
   return (
     <form

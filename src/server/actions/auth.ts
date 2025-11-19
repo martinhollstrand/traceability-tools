@@ -27,7 +27,11 @@ export async function loginAction(
     };
   }
 
-  const accessKey = process.env.ADMIN_ACCESS_KEY ?? "dev-admin";
+  console.log("accessKey", parsed.data.accessKey);
+
+  const accessKey = process.env.ADMIN_ACCESS_KEY ?? "helloworld";
+
+  console.log("accessKey", accessKey);
   if (parsed.data.accessKey !== accessKey) {
     return {
       success: false,

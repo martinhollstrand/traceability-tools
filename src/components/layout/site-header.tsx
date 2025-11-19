@@ -6,7 +6,7 @@ const navItems = [
   { href: "/tools", label: "Tools" },
   { href: "/compare", label: "Compare" },
   { href: "/report", label: "Reports" },
-  { href: "/(admin)", label: "Admin" },
+  { href: "/admin", label: "Admin" },
 ];
 
 export function SiteHeader() {

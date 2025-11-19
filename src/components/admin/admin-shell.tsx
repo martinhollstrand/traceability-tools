@@ -13,12 +13,13 @@ export const ADMIN_NAV = [
 type Props = {
   children: ReactNode;
   user: AdminSession;
+  navItems?: { label: string; href: string }[];
 };
 
-export function AdminShell({ children, user }: Props) {
+export function AdminShell({ children, user, navItems = ADMIN_NAV }: Props) {
   return (
     <div className="flex min-h-screen bg-[hsl(var(--surface-strong))]">
-      <AdminSidebar items={ADMIN_NAV} />
+      <AdminSidebar items={navItems} />
       <div className="flex flex-1 flex-col">
         <AdminTopbar user={user} />
         <main className="flex-1 px-6 py-8">{children}</main>
