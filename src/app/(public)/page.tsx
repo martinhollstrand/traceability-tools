@@ -38,19 +38,15 @@ export default async function LandingPage({
               the competition.
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-4">
-              <Button size="lg" asChild>
+              <Button size="lg" variant="secondary" asChild>
                 <a href="/tools">Browse tools</a>
               </Button>
-              <Button size="lg" variant="ghost" asChild>
+              <Button size="lg" variant="secondary" asChild>
                 <a href="/compare">Open comparison workspace</a>
               </Button>
-              <div className="border-primary/25 bg-primary/10 text-primary flex items-center gap-2 rounded-full border px-4 py-2 text-xs">
-                <span className="bg-primary inline-flex h-2 w-2 animate-pulse rounded-full" />
-                Updated daily with new vendors
-              </div>
             </div>
           </div>
-          <div className="border-border/40 relative overflow-hidden rounded-[28px] border bg-[hsl(var(--background))]/75 p-6 shadow-[0_26px_70px_-32px_hsl(var(--primary)/0.48)] backdrop-blur-xl">
+          {/* <div className="border-border/40 relative overflow-hidden rounded-[28px] border bg-[hsl(var(--background))]/75 p-6 shadow-[0_26px_70px_-32px_hsl(var(--primary)/0.48)] backdrop-blur-xl">
             <div className="text-muted-foreground/70 mb-6 flex items-center gap-3 text-xs tracking-[0.3em] uppercase">
               Signal feeds
               <span className="via-primary/40 h-px flex-1 bg-gradient-to-r from-transparent to-transparent" />
@@ -86,7 +82,7 @@ export default async function LandingPage({
                 </div>
               ))}
             </div>
-          </div>
+          </div> */}
         </div>
       </section>
 
@@ -133,11 +129,11 @@ export default async function LandingPage({
   );
 }
 
-const heroStats = [
-  { label: "Vendors", value: "180+" },
-  { label: "Data Points", value: "48k" },
-  { label: "Countries", value: "42" },
-];
+// const heroStats = [
+//   { label: "Vendors", value: "180+" },
+//   { label: "Data Points", value: "48k" },
+//   { label: "Countries", value: "42" },
+// ];
 
 const insightBullets = [
   {

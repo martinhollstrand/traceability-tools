@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import { SITE_NAME } from "@/lib/constants";
+import { CompareButton } from "@/components/layout/compare-button";
 
 const navItems = [
   { href: "/tools", label: "Tools" },
   { href: "/compare", label: "Compare" },
   { href: "/report", label: "Reports" },
-  { href: "/admin", label: "Admin" },
+  // { href: "/admin", label: "Admin" },
 ];
 
 export function SiteHeader() {
@@ -15,11 +16,14 @@ export function SiteHeader() {
       <div className="via-primary/30 absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent to-transparent" />
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="group flex items-center gap-3 font-semibold">
-          <span className="border-primary/25 relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.28),hsl(var(--background)))]">
-            <span className="absolute inset-0 bg-[conic-gradient(from_140deg,hsl(var(--primary)/0.45),hsl(var(--accent)/0.35),transparent_80%)] opacity-70 blur-md transition duration-500 group-hover:scale-[1.15]" />
-            <span className="bg-primary/90 relative h-2 w-2 rounded-full shadow-[0_0_16px_hsl(var(--accent)/0.8)] transition duration-500 group-hover:shadow-[0_0_24px_hsl(var(--accent)/0.9)]" />
-          </span>
-          <span className="text-gradient text-lg tracking-tight">{SITE_NAME}</span>
+          <Image
+            src="/logo.png"
+            alt={SITE_NAME}
+            width={300}
+            height={40}
+            className="transition-transform duration-300 group-hover:scale-105"
+            priority
+          />
         </Link>
         <nav className="border-border/40 hidden items-center gap-2 rounded-full border bg-[hsl(var(--surface))]/70 px-2 py-1 text-sm font-medium shadow-[0_12px_35px_-25px_hsl(var(--primary)/0.35)] md:flex">
           {navItems.map((item) => (
@@ -33,12 +37,7 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-3">
-          <span className="text-muted-foreground/80 hidden text-xs lg:inline">
-            Private beta access
-          </span>
-          <Button asChild size="sm">
-            <Link href="/compare">Launch Compare</Link>
-          </Button>
+          <CompareButton />
         </div>
       </div>
     </header>

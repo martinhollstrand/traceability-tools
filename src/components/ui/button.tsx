@@ -18,6 +18,8 @@ const buttonVariants = cva(
           "border border-transparent bg-transparent text-foreground/80 hover:bg-[hsl(var(--surface))]/55 hover:text-foreground",
         destructive:
           "bg-destructive text-destructive-foreground shadow-[0_24px_48px_-28px_hsl(var(--destructive)/0.55)] hover:bg-destructive/90",
+        selected:
+          "bg-green-500/20 text-green-700 dark:text-green-700 shadow-[0_24px_48px_-28px_hsl(142_71%_45%/0.35)] ring-2 ring-green-500/40 hover:bg-green-500/30 hover:ring-green-500/60",
       },
       size: {
         default: "h-10 px-5",

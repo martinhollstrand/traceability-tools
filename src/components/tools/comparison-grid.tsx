@@ -1,17 +1,109 @@
-import { Fragment, type ReactNode } from "react";
+"use client";
+
+import { Fragment, useState, type ReactNode, useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ThinkingLoader } from "@/components/ui/thinking-loader";
 import type { Tool } from "@/lib/validators/tool";
-import { cn, formatNumber, formatPercent } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { ChevronDown, ChevronUp, Sparkles, ChevronRight } from "lucide-react";
 
 type ComparisonGridProps = {
   tools: Tool[];
-  summary?: string;
 };
 
 const summaryDisabledCopy = "AI summary is disabled in this environment.";
 
-export function ComparisonGrid({ tools, summary }: ComparisonGridProps) {
+export function ComparisonGrid({ tools }: ComparisonGridProps) {
+  const [summary, setSummary] = useState<string>("");
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkScroll = () => {
+      if (scrollContainerRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+        setShowRightArrow(
+          scrollWidth > clientWidth && scrollLeft + clientWidth < scrollWidth - 10,
+        );
+      }
+    };
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", checkScroll);
+      window.addEventListener("resize", checkScroll);
+      // Small timeout to allow layout to settle
+      setTimeout(checkScroll, 100);
+    }
+
+    return () => {
+      if (container) container.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+    };
+  }, [tools.length, isExpanded]);
+
+  const handleGenerateSummary = async () => {
+    if (tools.length < 2 || isLoadingSummary) return;
+
+    setIsLoadingSummary(true);
+    setIsStreaming(true);
+    setSummary("");
+
+    try {
+      const response = await fetch("/api/ai/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: tools.map((tool) => tool.id),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate summary");
+      }
+
+      // Stream the response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      let hasReceivedData = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+
+        // toTextStreamResponse sends plain text chunks - append all chunks
+        if (chunk) {
+          hasReceivedData = true;
+          setSummary((prev) => prev + chunk);
+        }
+      }
+
+      // If we never received any data, set error message
+      if (!hasReceivedData) {
+        console.warn("No data received from stream");
+        setSummary("AI summary is temporarily unavailable.");
+      }
+    } catch (error) {
+      console.error("Failed to fetch AI summary:", error);
+      setSummary("AI summary is temporarily unavailable.");
+    } finally {
+      setIsLoadingSummary(false);
+      setIsStreaming(false);
+    }
+  };
+
   const baseColumnWidth = 260;
   const gridTemplateColumns =
     tools.length > 0
@@ -19,6 +111,15 @@ export function ComparisonGrid({ tools, summary }: ComparisonGridProps) {
       : "220px";
   const gridMinWidth = 220 + tools.length * baseColumnWidth;
   const gridTemplateStyle = { gridTemplateColumns };
+
+  // Collect all unique comparison keys
+  const allComparisonKeys = Array.from(
+    new Set(
+      tools.flatMap((tool) =>
+        Object.keys((tool.comparisonData as Record<string, unknown>) || {}),
+      ),
+    ),
+  ).sort();
 
   const rows: Array<{
     label: string;
@@ -37,76 +138,29 @@ export function ComparisonGrid({ tools, summary }: ComparisonGridProps) {
         </p>
       ),
     },
-    {
-      label: "Customers",
-      render: (tool) => formatNumber(tool.stats.customers),
-    },
-    {
-      label: "Supply Coverage",
-      render: (tool) => formatPercent(tool.stats.coverage, 0),
-    },
-    {
-      label: "Integrations",
-      render: (tool) => formatNumber(tool.stats.contracts),
-    },
-    {
-      label: "Focus Tags",
-      render: (tool) => {
-        const tags = (tool.tags ?? tool.features ?? []).slice(0, 6);
-        if (!tags.length) return <span className="text-muted-foreground text-sm">—</span>;
-        return (
-          <div className="flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <Badge key={tag} variant="outline" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        );
-      },
-    },
-    {
-      label: "Feature Signals",
-      render: (tool) => {
-        const entries = Object.entries(tool.featureScore ?? {}).slice(0, 3);
-        if (!entries.length)
+    ...allComparisonKeys.map((key) => ({
+      label: key.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase()),
+      render: (tool: Tool) => {
+        const val = (tool.comparisonData as Record<string, unknown>)?.[key];
+        if (val === undefined || val === null || val === "") {
           return <span className="text-muted-foreground text-sm">—</span>;
+        }
         return (
-          <div className="text-muted-foreground flex flex-wrap items-center gap-3 text-xs">
-            {entries.map(([key, value]) => (
-              <span
-                key={key}
-                className="rounded-full bg-[hsl(var(--surface))]/80 px-3 py-1 text-[11px] font-medium tracking-[0.28em] uppercase"
-              >
-                {key}: {value.toFixed(1)}
-              </span>
-            ))}
-          </div>
+          <span className="text-sm">
+            {typeof val === "object" ? JSON.stringify(val) : String(val)}
+          </span>
         );
       },
-    },
-    {
-      label: "Key Details",
-      subtle: true,
-      render: (tool) => {
-        const values = extractKeyDetails(tool);
-        if (!values.length)
-          return <span className="text-muted-foreground text-sm">—</span>;
-
-        return (
-          <ul className="text-muted-foreground space-y-1 text-sm">
-            {values.map((value) => (
-              <li key={value}>{value}</li>
-            ))}
-          </ul>
-        );
-      },
-    },
+    })),
   ];
+
+  const INITIAL_ROW_COUNT = 5;
+  const visibleRows = isExpanded ? rows : rows.slice(0, INITIAL_ROW_COUNT);
 
   return (
     <div className="space-y-8">
-      {summary && summary !== summaryDisabledCopy && (
+      {/* AI Summary Section */}
+      {tools.length >= 2 && (
         <Card className="border-primary/20 bg-[hsl(var(--surface))]/75 shadow-[0_30px_80px_-50px_hsl(var(--primary)/0.65)]">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -117,72 +171,132 @@ export function ComparisonGrid({ tools, summary }: ComparisonGridProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <article className="prose prose-sm text-muted-foreground max-w-none">
-              <SummaryContent summary={summary} />
-            </article>
-          </CardContent>
-        </Card>
-      )}
-      {summary === summaryDisabledCopy && (
-        <Card className="border-border/60 bg-[hsl(var(--surface))]/65">
-          <CardHeader>
-            <CardTitle>AI Highlights</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground text-sm">
-              AI summaries are disabled for this environment. Add a valid API key to your
-              `.env` to enable automated write-ups.
-            </p>
+            {isLoadingSummary && !summary ? (
+              <ThinkingLoader />
+            ) : isLoadingSummary && summary ? (
+              <article className="prose prose-sm text-muted-foreground max-w-none">
+                <SummaryContent summary={summary} />
+                {isStreaming && (
+                  <span className="bg-primary/60 ml-1 inline-block h-4 w-0.5 animate-pulse" />
+                )}
+              </article>
+            ) : summary ? (
+              summary === summaryDisabledCopy ? (
+                <p className="text-muted-foreground text-sm">
+                  AI summaries are disabled for this environment. Add a valid API key to
+                  your `.env` to enable automated write-ups.
+                </p>
+              ) : (
+                <article className="prose prose-sm text-muted-foreground max-w-none">
+                  <SummaryContent summary={summary} />
+                </article>
+              )
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-4 py-8">
+                <div className="text-center">
+                  <p className="text-muted-foreground mb-2 text-sm">
+                    Generate AI-powered insights comparing {tools.length} selected tools
+                  </p>
+                  <p className="text-muted-foreground/70 text-xs">
+                    Get pattern-matched strengths, differentiators, and implementation
+                    considerations
+                  </p>
+                </div>
+                <Button
+                  onClick={handleGenerateSummary}
+                  variant="default"
+                  className="gap-2"
+                  disabled={isLoadingSummary}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Generate AI Highlights
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
       <div className="hidden md:block">
-        <div className="overflow-x-auto pb-6">
-          <div
-            className="border-border/50 inline-block overflow-hidden rounded-[32px] border bg-[hsl(var(--surface))]/70 shadow-[0_26px_90px_-45px_hsl(var(--primary)/0.55)]"
-            style={{ minWidth: `${gridMinWidth}px` }}
-          >
+        <div className="relative">
+          <div ref={scrollContainerRef} className="scrollbar-hide overflow-x-auto pb-6">
             <div
-              className="border-border/40 grid items-stretch gap-0 border-b bg-[hsl(var(--surface-strong))]/70 px-6 py-4"
-              style={gridTemplateStyle}
+              className="border-border/50 inline-block overflow-hidden rounded-[32px] border bg-[hsl(var(--surface))]/70 shadow-[0_26px_90px_-45px_hsl(var(--primary)/0.55)]"
+              style={{ minWidth: `${gridMinWidth}px` }}
             >
-              <div className="text-muted-foreground text-xs font-semibold tracking-[0.4em] uppercase">
-                Dimension
-              </div>
-              {tools.map((tool) => (
-                <div key={tool.id} className="flex flex-col gap-1">
-                  <span className="text-foreground text-base font-semibold">
-                    {tool.name}
-                  </span>
-                  <span className="text-muted-foreground text-xs tracking-[0.35em] uppercase">
-                    {tool.category}
-                  </span>
+              <div
+                className="border-border/40 grid items-stretch gap-0 border-b bg-[hsl(var(--surface-strong))]/70"
+                style={gridTemplateStyle}
+              >
+                <div className="text-muted-foreground border-border/40 sticky left-0 z-10 border-r bg-[hsl(var(--surface-strong))] px-6 py-4 text-xs font-semibold tracking-[0.4em] uppercase shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]">
+                  Dimension
                 </div>
-              ))}
-            </div>
-            <div className="divide-border/60 divide-y">
-              {rows.map((row) => (
-                <div
-                  key={row.label}
-                  className={cn(
-                    "grid items-start gap-0 px-6 py-5",
-                    row.subtle ? "bg-background/40" : "bg-background/55",
-                  )}
-                  style={gridTemplateStyle}
-                >
-                  <div className="text-muted-foreground text-xs font-semibold tracking-[0.35em] uppercase">
-                    {row.label}
+                {tools.map((tool) => (
+                  <div key={tool.id} className="flex flex-col gap-1 px-6 py-4">
+                    <span className="text-foreground text-base font-semibold">
+                      {tool.name}
+                    </span>
+                    <span className="text-muted-foreground text-xs tracking-[0.35em] uppercase">
+                      {tool.category}
+                    </span>
                   </div>
-                  {tools.map((tool) => (
-                    <div key={`${tool.id}-${row.label}`} className="space-y-2">
-                      {row.render(tool)}
+                ))}
+              </div>
+              <div className="divide-border/60 divide-y">
+                {visibleRows.map((row) => (
+                  <div
+                    key={row.label}
+                    className={cn(
+                      "grid items-stretch gap-0",
+                      row.subtle ? "bg-background/40" : "bg-background/55",
+                    )}
+                    style={gridTemplateStyle}
+                  >
+                    <div className="text-muted-foreground border-border/40 sticky left-0 z-10 flex items-start border-r bg-[hsl(var(--surface))] px-6 py-5 text-xs font-semibold tracking-[0.35em] uppercase shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]">
+                      {row.label}
                     </div>
-                  ))}
+                    {tools.map((tool) => (
+                      <div
+                        key={`${tool.id}-${row.label}`}
+                        className="space-y-2 px-6 py-5"
+                      >
+                        {row.render(tool)}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              {rows.length > INITIAL_ROW_COUNT && (
+                <div className="sticky left-0 z-10 w-full bg-[hsl(var(--surface))]/70 p-2">
+                  <Button
+                    variant="ghost"
+                    className="text-muted-foreground hover:text-foreground w-full justify-center gap-2"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                  >
+                    {isExpanded ? (
+                      <>
+                        <ChevronUp className="h-4 w-4" />
+                        Show less
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="h-4 w-4" />
+                        Show {rows.length - INITIAL_ROW_COUNT} more rows
+                      </>
+                    )}
+                  </Button>
                 </div>
-              ))}
+              )}
             </div>
           </div>
+          {showRightArrow && (
+            <div className="pointer-events-none absolute top-0 right-0 bottom-6 z-20 flex w-24 items-center justify-end bg-gradient-to-l from-[hsl(var(--background))] to-transparent pr-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--surface))] shadow-lg ring-1 ring-white/10">
+                <ChevronRight className="text-foreground h-6 w-6" />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -197,41 +311,23 @@ export function ComparisonGrid({ tools, summary }: ComparisonGridProps) {
             </CardHeader>
             <CardContent className="text-muted-foreground space-y-4 text-sm">
               <p>{tool.summary}</p>
-              <div className="border-border/40 grid grid-cols-3 gap-2 rounded-2xl border bg-[hsl(var(--surface))]/70 p-3 text-center text-xs">
-                <StatBlock label="Customers" value={formatNumber(tool.stats.customers)} />
-                <StatBlock
-                  label="Coverage"
-                  value={formatPercent(tool.stats.coverage, 0)}
-                />
-                <StatBlock
-                  label="Integrations"
-                  value={formatNumber(tool.stats.contracts)}
-                />
+
+              <div className="space-y-2">
+                {allComparisonKeys.map((key) => {
+                  const val = (tool.comparisonData as Record<string, unknown>)?.[key];
+                  if (!val) return null;
+                  return (
+                    <div key={key}>
+                      <p className="text-foreground mb-1 text-xs font-semibold tracking-wider uppercase">
+                        {key.replace(/([A-Z])/g, " $1")}
+                      </p>
+                      <p className="text-sm">
+                        {typeof val === "object" ? JSON.stringify(val) : String(val)}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
-              <div>
-                <p className="text-foreground font-semibold">Focus</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(tool.tags ?? tool.features ?? []).slice(0, 5).map((tag) => (
-                    <Badge key={tag} variant="outline">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              {(() => {
-                const keyDetails = extractKeyDetails(tool);
-                if (!keyDetails.length) return null;
-                return (
-                  <div>
-                    <p className="text-foreground font-semibold">Key details</p>
-                    <ul className="text-muted-foreground mt-2 space-y-1 text-xs">
-                      {keyDetails.map((detail) => (
-                        <li key={detail}>{detail}</li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })()}
             </CardContent>
           </Card>
         ))}
@@ -310,48 +406,4 @@ function SummaryContent({ summary }: { summary: string }) {
   flushList();
 
   return <Fragment>{content}</Fragment>;
-}
-
-function StatBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-muted-foreground/70 tracking-[0.35em] uppercase">{label}</p>
-      <p className="text-foreground mt-1 text-base font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function extractKeyDetails(tool: Tool): string[] {
-  const metadata = (tool.metadata ?? {}) as Record<string, unknown>;
-  const comparison = (tool.comparisonData as Record<string, unknown>) ?? {};
-  const keys = [
-    "pricingModel",
-    "launchYear",
-    "dataRefreshCadence",
-    "assurancePartners",
-    "deployment",
-    "implementationTime",
-    "dataResidency",
-  ];
-
-  const details = keys
-    .map((key) => {
-      const source = metadata[key] ?? comparison[key];
-      if (!source) return null;
-      const formatted =
-        typeof source === "number" || typeof source === "string"
-          ? source
-          : JSON.stringify(source);
-      const label = key
-        .replace(/([A-Z])/g, " $1")
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-      return `${label}: ${formatted}`;
-    })
-    .filter(Boolean) as string[];
-
-  if (!details.length && typeof metadata["tagline"] === "string") {
-    details.push(metadata["tagline"] as string);
-  }
-
-  return details;
 }

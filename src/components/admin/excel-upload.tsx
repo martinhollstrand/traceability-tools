@@ -15,6 +15,7 @@ export function ExcelUpload() {
   const [rowCount, setRowCount] = useState(0);
   const [columns, setColumns] = useState<string[]>([]);
   const [previewRows, setPreviewRows] = useState<Record<string, unknown>[]>([]);
+  const [regenerateAi, setRegenerateAi] = useState(false);
 
   const handleFileChange = async (file: File) => {
     setFileName(file.name);
@@ -74,6 +75,21 @@ export function ExcelUpload() {
         <input type="hidden" name="filename" value={fileName} />
         <input type="hidden" name="rowCount" value={rowCount} />
         <input type="hidden" name="columns" value={JSON.stringify(columns)} />
+        <input type="hidden" name="regenerateAi" value={String(regenerateAi)} />
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="regenerateAi"
+            checked={regenerateAi}
+            onChange={(e) => setRegenerateAi(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-[hsl(var(--foreground))] focus:ring-[hsl(var(--foreground))]"
+          />
+          <label htmlFor="regenerateAi" className="text-sm text-[hsl(var(--muted))]">
+            Regenerate AI summaries for existing tools
+          </label>
+        </div>
+
         <SubmitButton disabled={!fileName} />
         {state.error && <p className="text-sm text-red-600">{state.error}</p>}
         {state.success && (

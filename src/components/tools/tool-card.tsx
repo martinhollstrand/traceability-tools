@@ -3,7 +3,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatNumber, formatPercent } from "@/lib/utils";
 import type { Tool } from "@/lib/validators/tool";
 import { useCompareStore } from "@/store/useCompareStore";
 
@@ -32,11 +31,11 @@ export function ToolCard({ tool }: ToolCardProps) {
       </CardHeader>
       <CardContent className="gap-4">
         <p className="text-muted-foreground text-sm leading-relaxed">{tool.summary}</p>
-        <div className="border-border/50 grid grid-cols-3 gap-4 rounded-2xl border bg-[hsl(var(--surface-strong))]/60 p-4 text-center text-xs shadow-[0_18px_55px_-40px_hsl(var(--primary)/0.3)]">
+        {/* <div className="border-border/50 grid grid-cols-3 gap-4 rounded-2xl border bg-[hsl(var(--surface-strong))]/60 p-4 text-center text-xs shadow-[0_18px_55px_-40px_hsl(var(--primary)/0.3)]">
           <Stat label="Customers" value={tool.stats.customers.toLocaleString()} />
           <Stat label="Supply Coverage" value={formatPercent(tool.stats.coverage)} />
           <Stat label="Integrations" value={formatNumber(tool.stats.contracts)} />
-        </div>
+        </div> */}
         <div className="flex flex-wrap gap-2">
           {tags.slice(0, 4).map((tag) => (
             <Badge
@@ -49,14 +48,14 @@ export function ToolCard({ tool }: ToolCardProps) {
           ))}
         </div>
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" asChild>
+          <Button variant="secondary" size="sm" asChild>
             <a href={tool.website} target="_blank" rel="noreferrer">
               Visit site
             </a>
           </Button>
           <Button
             size="sm"
-            variant={isSelected ? "secondary" : "default"}
+            variant={isSelected ? "selected" : "secondary"}
             onClick={() =>
               toggle({
                 id: tool.id,
@@ -73,16 +72,5 @@ export function ToolCard({ tool }: ToolCardProps) {
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-muted-foreground/70 text-[11px] font-medium tracking-[0.3em] uppercase">
-        {label}
-      </p>
-      <p className="text-foreground mt-1 text-base font-semibold">{value}</p>
-    </div>
   );
 }
