@@ -24,7 +24,7 @@
     "drizzle:studio": "drizzle-kit studio",
     "lint-staged": "lint-staged",
     "check": "npm run typecheck && npm run lint && npm run test",
-    "prepare": "husky install && lefthook install"
+    "prepare": "husky"
   },
   "dependencies": {
     "@ai-sdk/openai": "^0.0.70",
@@ -49,7 +49,7 @@
     "drizzle-orm": "^0.44.7",
     "lucide-react": "^0.468.0",
     "nanoid": "^5.0.7",
-    "next": "16.0.3",
+    "next": "16.0.7",
     "pino": "^9.5.0",
     "pino-pretty": "^11.2.2",
     "postgres": "^3.4.7",
