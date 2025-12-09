@@ -28,14 +28,12 @@ export function ToolTable({ tools }: ToolTableProps) {
         <TableRow>
           <TableHead className="min-w-[220px]">Tool</TableHead>
           <TableHead>Category</TableHead>
-          <TableHead className="min-w-[200px]">Focus</TableHead>
           <TableHead className="text-right">Compare</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {tools.map((tool) => {
           const isSelected = selections.some((item) => item.id === tool.id);
-          const tags = (tool.tags ?? tool.features ?? []).slice(0, 4);
           const metadata = (tool.metadata ?? {}) as Record<string, unknown>;
           const tagline =
             typeof metadata["tagline"] === "string"
@@ -68,19 +66,6 @@ export function ToolTable({ tools }: ToolTableProps) {
               </TableCell>
               <TableCell className="align-top">
                 <Badge variant="secondary">{tool.category}</Badge>
-              </TableCell>
-              <TableCell className="align-top">
-                <div className="flex flex-wrap gap-1">
-                  {tags.length ? (
-                    tags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-muted-foreground text-xs">—</span>
-                  )}
-                </div>
               </TableCell>
               <TableCell className="text-right align-top">
                 <Button

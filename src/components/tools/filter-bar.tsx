@@ -4,19 +4,22 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { CATEGORY_FILTERS, FEATURE_TAGS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type FilterBarProps = {
   defaultQuery?: string;
   defaultCategories?: string[];
   defaultTags?: string[];
+  availableCategories?: string[];
+  availableFeatures?: string[];
 };
 
 export function FilterBar({
   defaultQuery = "",
   defaultCategories = [],
   defaultTags = [],
+  availableCategories = [],
+  availableFeatures = [],
 }: FilterBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -112,31 +115,27 @@ export function FilterBar({
           )}
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
-          {CATEGORY_FILTERS.map((category) => {
-            const active = categories.includes(category);
-            return (
-              <button
-                key={category}
-                type="button"
-                onClick={() => {
-                  const newCategories = toggle(categories, category);
-                  setCategories(newCategories);
-                  updateUrl(query, newCategories, tags);
-                }}
-                className={cn(
-                  "relative rounded-full border px-3 py-1 text-xs font-medium transition-all",
-                  active
-                    ? "border-primary bg-primary/15 text-primary ring-primary/20 shadow-sm ring-1"
-                    : "border-border text-muted-foreground hover:border-primary/50 hover:bg-[hsl(var(--surface))]",
-                )}
-              >
-                {category}
-                {active && (
-                  <span className="bg-primary absolute -top-1 -right-1 h-2 w-2 rounded-full" />
-                )}
-              </button>
-            );
-          })}
+          {availableCategories.length === 0 ? (
+            <p className="text-muted-foreground text-xs">No categories available</p>
+          ) : (
+            availableCategories.map((category) => {
+              const active = categories.includes(category);
+              return (
+                <Button
+                  key={category}
+                  variant={active ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    const newCategories = toggle(categories, category);
+                    setCategories(newCategories);
+                    updateUrl(query, newCategories, tags);
+                  }}
+                >
+                  {category}
+                </Button>
+              );
+            })
+          )}
         </div>
       </div>
       <div>
@@ -151,31 +150,27 @@ export function FilterBar({
           )}
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
-          {FEATURE_TAGS.map((tag) => {
-            const active = tags.includes(tag);
-            return (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => {
-                  const newTags = toggle(tags, tag);
-                  setTags(newTags);
-                  updateUrl(query, categories, newTags);
-                }}
-                className={cn(
-                  "relative rounded-full border px-3 py-1 text-xs font-medium transition-all",
-                  active
-                    ? "border-secondary bg-secondary/25 text-secondary-foreground ring-secondary/20 shadow-sm ring-1"
-                    : "border-border text-muted-foreground hover:border-secondary/50 hover:bg-[hsl(var(--surface))]",
-                )}
-              >
-                {tag}
-                {active && (
-                  <span className="bg-secondary absolute -top-1 -right-1 h-2 w-2 rounded-full" />
-                )}
-              </button>
-            );
-          })}
+          {availableFeatures.length === 0 ? (
+            <p className="text-muted-foreground text-xs">No features available</p>
+          ) : (
+            availableFeatures.map((tag) => {
+              const active = tags.includes(tag);
+              return (
+                <Button
+                  key={tag}
+                  variant={active ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    const newTags = toggle(tags, tag);
+                    setTags(newTags);
+                    updateUrl(query, categories, newTags);
+                  }}
+                >
+                  {tag}
+                </Button>
+              );
+            })
+          )}
         </div>
       </div>
       <div className="flex items-center justify-end gap-2">

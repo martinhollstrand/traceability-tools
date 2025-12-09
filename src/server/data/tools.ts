@@ -71,6 +71,41 @@ export const getComparisonDataset = cache(async (ids: string[]): Promise<Tool[]>
   return rows.map(mapToolRow);
 });
 
+export const getAvailableCategories = cache(async (): Promise<string[]> => {
+  const rows = await db
+    .select({ category: toolsTable.category })
+    .from(toolsTable)
+    .where(eq(toolsTable.status, "published"));
+
+  const categorySet = new Set<string>();
+  rows.forEach((row) => {
+    if (row.category && row.category.trim()) {
+      categorySet.add(row.category.trim());
+    }
+  });
+
+  return Array.from(categorySet).sort();
+});
+
+export const getAvailableFeatures = cache(async (): Promise<string[]> => {
+  const rows = await db
+    .select({ highlights: toolsTable.highlights })
+    .from(toolsTable)
+    .where(eq(toolsTable.status, "published"));
+
+  const featureSet = new Set<string>();
+  rows.forEach((row) => {
+    const highlights = (row.highlights as string[]) ?? [];
+    highlights.forEach((highlight) => {
+      if (highlight && highlight.trim()) {
+        featureSet.add(highlight.trim());
+      }
+    });
+  });
+
+  return Array.from(featureSet).sort();
+});
+
 export async function revalidateToolsTag(ids?: string[]) {
   revalidatePath("/tools");
   if (ids?.length) {
