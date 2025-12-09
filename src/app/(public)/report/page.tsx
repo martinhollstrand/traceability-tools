@@ -60,7 +60,7 @@ export default async function ReportPage() {
         </p>
         {report.pdfUrl ? (
           <div className="mt-4 space-y-2">
-            <Button asChild>
+            <Button variant="secondary" asChild>
               <a href={report.pdfUrl} target="_blank" rel="noopener noreferrer">
                 Download PDF
               </a>

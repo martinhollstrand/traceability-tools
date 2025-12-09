@@ -12,25 +12,24 @@ type ThemeContextValue = {
 const ThemeContext = React.createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>("light");
+  // Always use light mode for now
+  // TODO: Add dark mode support later by:
+  // 1. Reading from localStorage: window.localStorage.getItem("theme")
+  // 2. Detecting system preference: window.matchMedia("(prefers-color-scheme: dark)")
+  // 3. Updating setTheme to persist to localStorage
+  const theme: Theme = "light";
 
   React.useEffect(() => {
-    const storedTheme = window.localStorage.getItem("theme") as Theme | null;
-    if (storedTheme) {
-      setThemeState(storedTheme);
-      document.documentElement.dataset.theme = storedTheme;
-      return;
-    }
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const nextTheme = prefersDark ? "dark" : "light";
-    setThemeState(nextTheme);
-    document.documentElement.dataset.theme = nextTheme;
+    document.documentElement.dataset.theme = theme;
   }, []);
 
-  const setTheme = React.useCallback((value: Theme) => {
-    setThemeState(value);
-    window.localStorage.setItem("theme", value);
-    document.documentElement.dataset.theme = value;
+  // Placeholder function - will be implemented when dark mode is added
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const setTheme = React.useCallback((_value: Theme) => {
+    // TODO: Implement theme switching when dark mode is added
+    // setThemeState(_value);
+    // window.localStorage.setItem("theme", _value);
+    // document.documentElement.dataset.theme = _value;
   }, []);
 
   return (

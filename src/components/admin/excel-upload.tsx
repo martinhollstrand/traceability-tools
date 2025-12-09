@@ -42,7 +42,7 @@ export function ExcelUpload() {
           automatiskt.
         </Text>
       </div>
-      <form action={formAction} className="space-y-4" encType="multipart/form-data">
+      <form action={formAction} className="space-y-4">
         <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[hsl(var(--border))] px-6 py-10 text-center text-sm text-[hsl(var(--muted))] hover:border-[hsl(var(--foreground))]">
           <input
             type="file"
