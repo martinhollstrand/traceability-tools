@@ -6,9 +6,13 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-xs tracking-[0.4em] text-white/50 uppercase">Overview</p>
-        <h1 className="text-3xl font-semibold text-white">Operations console</h1>
-        <p className="text-sm text-white/60">
+        <p className="text-xs tracking-[0.4em] text-[hsl(var(--muted))] uppercase">
+          Overview
+        </p>
+        <h1 className="text-3xl font-semibold text-[hsl(var(--foreground))]">
+          Operations console
+        </h1>
+        <p className="text-sm text-[hsl(var(--muted))]">
           Monitor incoming Excel imports, AI summary usage, and active datasets.
         </p>
       </div>
@@ -19,8 +23,8 @@ export default async function AdminDashboard() {
         <Stat label="Reports published" value={summary.reportCount} />
       </div>
 
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-white/70">
-        <p className="font-semibold text-white">Latest import</p>
+      <div className="rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-6 text-sm text-[hsl(var(--muted))]">
+        <p className="font-semibold text-[hsl(var(--foreground))]">Latest import</p>
         {summary.latestVersion ? (
           <p className="mt-2">
             {summary.latestVersion.updatedAt?.toLocaleString()}:{" "}
@@ -36,9 +40,11 @@ export default async function AdminDashboard() {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-      <p className="text-xs tracking-[0.3em] text-white/60 uppercase">{label}</p>
-      <p className="mt-2 text-3xl font-semibold text-white">{value}</p>
+    <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-5">
+      <p className="text-xs tracking-[0.3em] text-[hsl(var(--muted))] uppercase">
+        {label}
+      </p>
+      <p className="mt-2 text-3xl font-semibold text-[hsl(var(--foreground))]">{value}</p>
     </div>
   );
 }

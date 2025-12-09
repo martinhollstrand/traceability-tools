@@ -8,6 +8,27 @@
       "when": 1763580352050,
       "tag": "0000_left_guardsmen",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1765241257910,
+      "tag": "0001_absurd_moondragon",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765241664925,
+      "tag": "0002_late_brother_voodoo",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1765241963776,
+      "tag": "0003_harsh_thanos",
+      "breakpoints": true
     }
   ]
 }

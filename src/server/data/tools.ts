@@ -115,13 +115,21 @@ function mapReportRow(row: typeof reportMetadataTable.$inferSelect): ReportMetad
       : { label: finding, detail: finding };
   });
 
+  // Merge PDF metadata into previewData
+  const metadata = {
+    ...previewData,
+    pdfFilename: row.pdfFilename ?? undefined,
+    pdfSize: row.pdfSize ?? undefined,
+    pdfUploadedAt: row.pdfUploadedAt?.toISOString() ?? undefined,
+  } as ReportMetadata["metadata"];
+
   return {
     id: row.id,
     toolId: "", // toolId not in new schema - reports are standalone
     title: row.title,
     pdfUrl: row.pdfUrl ?? undefined,
     highlights,
-    metadata: previewData as ReportMetadata["metadata"],
+    metadata,
   };
 }
 

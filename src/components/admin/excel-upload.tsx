@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { uploadExcelAction, type UploadExcelState } from "@/server/actions/tool-versions";
@@ -10,7 +11,7 @@ import { Text } from "@/components/ui/text";
 const initialState: UploadExcelState = { success: false };
 
 export function ExcelUpload() {
-  const [state, formAction] = useFormState(uploadExcelAction, initialState);
+  const [state, formAction] = useActionState(uploadExcelAction, initialState);
   const [fileName, setFileName] = useState("");
   const [rowCount, setRowCount] = useState(0);
   const [columns, setColumns] = useState<string[]>([]);

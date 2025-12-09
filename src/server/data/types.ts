@@ -22,10 +22,15 @@ export type ToolComparisonRow = ToolListItem & {
 };
 
 export type ReportMetadataPayload = {
+  id?: string;
   title: string;
   ingress: string | null;
   keyFindings: string[];
   pdfUrl: string | null;
+  pdfFilename: string | null;
+  pdfSize: number | null;
+  pdfUploadedAt: string | null;
   isPublished: boolean;
   updatedAt?: string;
+  createdAt?: string;
 };

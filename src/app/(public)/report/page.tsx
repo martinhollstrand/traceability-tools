@@ -1,36 +1,42 @@
 import { ReportSections } from "@/components/report/report-sections";
 import { Button } from "@/components/ui/button";
-import { getReportByTool, listTools } from "@/server/data/tools";
+import { getPublishedReport } from "@/server/data/reports";
+import type { ReportMetadata } from "@/lib/validators/report";
 
-export default async function ReportPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string>>;
-}) {
-  const params = await searchParams;
-  const tools = await listTools();
-  const tool = params.tool
-    ? tools.find((entry) => entry.slug === params.tool || entry.id === params.tool)
-    : tools[0];
+export default async function ReportPage() {
+  const reportData = await getPublishedReport();
 
-  if (!tool) {
+  if (!reportData) {
     return (
       <div className="border-border/70 text-muted-foreground rounded-3xl border border-dashed p-10 text-center">
-        No tools available yet. Seed the database to generate report metadata.
+        No published report available. Please check back later or contact the
+        administrator.
       </div>
     );
   }
 
-  const report = await getReportByTool(tool.id);
+  // Convert ReportMetadataPayload to ReportMetadata format
+  const highlights: ReportMetadata["highlights"] = reportData.keyFindings.map(
+    (finding) => {
+      const parts = finding.split(": ");
+      return parts.length === 2
+        ? { label: parts[0]!, detail: parts[1]! }
+        : { label: finding, detail: finding };
+    },
+  );
 
-  if (!report) {
-    return (
-      <div className="border-border/70 text-muted-foreground rounded-3xl border border-dashed p-10 text-center">
-        No report metadata found for {tool.name}. Import Excel data from the admin
-        console.
-      </div>
-    );
-  }
+  const report: ReportMetadata = {
+    id: reportData.id || "report-singleton",
+    toolId: "",
+    title: reportData.title,
+    pdfUrl: reportData.pdfUrl ?? undefined,
+    highlights,
+    metadata: {
+      pdfFilename: reportData.pdfFilename ?? undefined,
+      pdfSize: reportData.pdfSize ?? undefined,
+      pdfUploadedAt: reportData.pdfUploadedAt ?? undefined,
+    },
+  };
 
   return (
     <div className="space-y-10">
@@ -38,8 +44,10 @@ export default async function ReportPage({
         <p className="text-muted-foreground text-sm tracking-widest uppercase">
           Briefings
         </p>
-        <h1 className="text-3xl font-semibold">{tool.name} report</h1>
-        <p className="text-muted-foreground text-sm">{report.metadata?.author}</p>
+        <h1 className="text-3xl font-semibold">{report.title}</h1>
+        {reportData.ingress && (
+          <p className="text-muted-foreground text-sm">{reportData.ingress}</p>
+        )}
       </div>
 
       <ReportSections report={report} />
@@ -50,9 +58,35 @@ export default async function ReportPage({
           Access the latest analyst notes, implementation checklist, and procurement
           references.
         </p>
-        <Button className="mt-4" disabled={!report.pdfUrl}>
-          {report.pdfUrl ? <a href={report.pdfUrl}>Download</a> : "Upload pending"}
-        </Button>
+        {report.pdfUrl ? (
+          <div className="mt-4 space-y-2">
+            <Button asChild>
+              <a href={report.pdfUrl} target="_blank" rel="noopener noreferrer">
+                Download PDF
+              </a>
+            </Button>
+            {report.metadata && (
+              <div className="text-muted-foreground text-xs">
+                {report.metadata.pdfFilename && (
+                  <p>File: {report.metadata.pdfFilename}</p>
+                )}
+                {report.metadata.pdfSize && (
+                  <p>Size: {(report.metadata.pdfSize / 1024 / 1024).toFixed(2)} MB</p>
+                )}
+                {report.metadata.pdfUploadedAt && (
+                  <p>
+                    Uploaded:{" "}
+                    {new Date(report.metadata.pdfUploadedAt).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <Button className="mt-4" disabled>
+            Upload pending
+          </Button>
+        )}
       </div>
     </div>
   );

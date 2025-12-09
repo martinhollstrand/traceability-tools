@@ -11,6 +11,7 @@ const envSchema = z.object({
   STORAGE_BUCKET_URL: z.string().url().optional(),
   NEXT_PUBLIC_SITE_URL: z.string().url(),
   EXCEL_UPLOAD_MAX_MB: z.string().default("15"),
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse({
@@ -24,6 +25,7 @@ const parsed = envSchema.safeParse({
   STORAGE_BUCKET_URL: process.env.STORAGE_BUCKET_URL,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   EXCEL_UPLOAD_MAX_MB: process.env.EXCEL_UPLOAD_MAX_MB,
+  BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
 });
 
 if (!parsed.success) {

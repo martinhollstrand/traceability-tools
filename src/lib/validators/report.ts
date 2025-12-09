@@ -16,6 +16,9 @@ export const reportSchema = z.object({
       author: z.string().optional(),
       publishedAt: z.string().optional(),
       tags: z.array(z.string()).optional(),
+      pdfFilename: z.string().optional(),
+      pdfSize: z.number().optional(),
+      pdfUploadedAt: z.string().optional(),
     })
     .optional(),
 });

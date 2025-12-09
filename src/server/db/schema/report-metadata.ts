@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { boolean, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
+import { adminUsersTable } from "./admin-users";
 
 export const reportMetadataTable = pgTable("report_metadata", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -10,6 +19,12 @@ export const reportMetadataTable = pgTable("report_metadata", {
     .notNull()
     .default(sql`'[]'::jsonb`),
   pdfUrl: text("pdf_url"),
+  pdfFilename: text("pdf_filename"),
+  pdfSize: integer("pdf_size"), // Size in bytes
+  pdfUploadedAt: timestamp("pdf_uploaded_at", { withTimezone: true }),
+  pdfUploadedBy: uuid("pdf_uploaded_by").references(() => adminUsersTable.id, {
+    onDelete: "set null",
+  }),
   isPublished: boolean("is_published").notNull().default(false),
   previewData: jsonb("preview_data")
     .$type<Record<string, unknown>>()

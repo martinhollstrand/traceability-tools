@@ -1,13 +1,13 @@
 import { listAllReports, getReportMetadata } from "@/server/data/reports";
-import AdminReportsPageClient from "./page-client";
+import AdminReportsPage from "./page";
 
-export default async function AdminReportsPage() {
+export default async function AdminReportsPageWrapper() {
   const allReports = await listAllReports();
   const latestReport = await getReportMetadata();
   const initialSelectedReport = latestReport.id ? latestReport : null;
 
   return (
-    <AdminReportsPageClient
+    <AdminReportsPage
       initialReports={allReports}
       initialSelectedReport={initialSelectedReport}
     />
