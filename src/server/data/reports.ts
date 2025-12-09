@@ -31,7 +31,10 @@ export const getReportMetadata = cache(async (): Promise<ReportMetadataPayload> 
         ingress: mockReportMetadata.ingress ?? null,
         keyFindings: mockReportMetadata.keyFindings,
         pdfUrl: mockReportMetadata.pdfUrl ?? null,
-        updatedAt: undefined,
+        pdfFilename: null,
+        pdfSize: null,
+        pdfUploadedAt: null,
+        updatedAt: undefined, // Optional property, undefined is allowed
       };
     }
 
@@ -41,9 +44,9 @@ export const getReportMetadata = cache(async (): Promise<ReportMetadataPayload> 
       ingress: row.ingress,
       keyFindings: row.keyFindings ?? [],
       pdfUrl: row.pdfUrl,
-      pdfFilename: row.pdfFilename,
-      pdfSize: row.pdfSize,
-      pdfUploadedAt: row.pdfUploadedAt?.toISOString(),
+      pdfFilename: row.pdfFilename ?? null,
+      pdfSize: row.pdfSize ?? null,
+      pdfUploadedAt: row.pdfUploadedAt ? row.pdfUploadedAt.toISOString() : null,
       isPublished: row.isPublished,
       updatedAt: row.updatedAt?.toISOString(),
     };
@@ -54,6 +57,9 @@ export const getReportMetadata = cache(async (): Promise<ReportMetadataPayload> 
       ingress: mockReportMetadata.ingress,
       keyFindings: mockReportMetadata.keyFindings,
       pdfUrl: mockReportMetadata.pdfUrl,
+      pdfFilename: null,
+      pdfSize: null,
+      pdfUploadedAt: null,
       isPublished: mockReportMetadata.isPublished,
     };
   }

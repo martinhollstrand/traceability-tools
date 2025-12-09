@@ -124,13 +124,15 @@ export async function saveReportAction(
       });
     } else {
       // Update existing report
+      // TypeScript guard: we know payload.id is a string here because isNewReport is false
+      const reportId: string = payload.id!;
       await db
         .update(reportMetadataTable)
         .set({
           ...updateData,
           isPublished: payload.isPublished === "on",
         })
-        .where(eq(reportMetadataTable.id, payload.id));
+        .where(eq(reportMetadataTable.id, reportId));
     }
 
     revalidatePath("/report");
