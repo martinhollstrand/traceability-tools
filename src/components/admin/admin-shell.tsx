@@ -20,9 +20,11 @@ export function AdminShell({ children, user, navItems = ADMIN_NAV }: Props) {
   return (
     <div className="flex min-h-screen bg-[hsl(var(--surface-strong))]">
       <AdminSidebar items={navItems} />
-      <div className="flex flex-1 flex-col">
+      {/* min-w-0 is critical in flex layouts to prevent wide children (tables)
+          from forcing the whole page to overflow horizontally. */}
+      <div className="flex min-w-0 flex-1 flex-col">
         <AdminTopbar user={user} />
-        <main className="flex-1 px-6 py-8">{children}</main>
+        <main className="min-w-0 flex-1 px-6 py-8">{children}</main>
       </div>
     </div>
   );

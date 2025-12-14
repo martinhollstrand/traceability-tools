@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { createHash } from "crypto";
 import { read, utils } from "xlsx";
 import { getDb } from "@/server/db";
 import { toolVersionsTable, toolsTable } from "@/server/db/schema";
@@ -55,6 +56,55 @@ function getValue(row: Record<string, unknown>, targetKeys: string[]): string {
     if (val) return val;
   }
   return "";
+}
+
+function extractWebDomain(input: string): string {
+  const raw = input.trim();
+  if (!raw) return "";
+
+  // Some sheets may contain multiple links; pick the first plausible token.
+  const token =
+    raw
+      .split(/[\s,;]+/)
+      .map((t) => t.trim())
+      .find((t) => t.includes(".")) ?? "";
+  if (!token) return "";
+
+  const withProtocol = /^https?:\/\//i.test(token) ? token : `https://${token}`;
+  try {
+    const url = new URL(withProtocol);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    return host;
+  } catch {
+    return "";
+  }
+}
+
+function deriveImportId(row: Record<string, unknown>): string {
+  // Prefer explicit IDs if present (some sheets/files don't have them).
+  const explicit = getValue(row, [
+    "ID",
+    "Id",
+    "Import ID",
+    "ImportId",
+    "Tool ID",
+    "ToolId",
+    "tool_id",
+  ]).trim();
+  if (explicit) return explicit;
+
+  // Deterministic fallback for files without IDs (like TraceabilitytoolsmappingV2.xlsx).
+  // Keep it stable across repeated imports so we can update existing tools.
+  const company = getValue(row, ["Company", "Vendor", "Provider"]).trim().toLowerCase();
+  const name = getValue(row, ["Tool name", "Name", "name"]).trim().toLowerCase();
+  const domain = extractWebDomain(getValue(row, ["Web", "Website", "URL"]));
+
+  // Base identity: company + tool name. If we can extract a domain, add it to reduce collisions.
+  const key = domain ? `${company}|${name}|${domain}` : `${company}|${name}`;
+  if (key === "|" || key.replaceAll("|", "") === "") return "";
+
+  // Short, stable id (hex) – enough entropy for our dataset and easy to read.
+  return createHash("sha256").update(key).digest("hex").slice(0, 16);
 }
 
 export async function uploadExcelAction(
@@ -127,10 +177,14 @@ export async function uploadExcelAction(
 
     let updatedCount = 0;
     let createdCount = 0;
+    let skippedCount = 0;
 
     for (const row of rows) {
-      const rowId = String(row["ID"] || row["id"] || "");
-      if (!rowId) continue;
+      const rowId = deriveImportId(row);
+      if (!rowId) {
+        skippedCount++;
+        continue;
+      }
 
       const name = getValue(row, ["Tool name", "Name", "name"]) || "Untitled Tool";
       const slug = slugify(name);
@@ -210,10 +264,10 @@ export async function uploadExcelAction(
       const toolData = {
         name,
         // slug is handled conditionally
-        vendor: getValue(row, ["Vendor", "vendor", "Provider"]),
+        vendor: getValue(row, ["Company", "Vendor", "vendor", "Provider"]),
         summary,
-        category: getValue(row, ["Category", "category", "Type"]),
-        website: getValue(row, ["Website", "website", "URL"]),
+        category: getValue(row, ["Main focus/category", "Category", "category", "Type"]),
+        website: getValue(row, ["Web", "Website", "website", "URL"]),
         status: "published" as const,
         rawData: row,
         comparisonData,
@@ -273,6 +327,7 @@ export async function uploadExcelAction(
           ...(version.metadata as Record<string, unknown>),
           updatedCount,
           createdCount,
+          skippedCount,
         },
       })
       .where(eq(toolVersionsTable.id, version.id));

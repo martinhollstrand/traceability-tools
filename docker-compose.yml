@@ -10,6 +10,7 @@ services:
       POSTGRES_DB: db
     volumes:
       - postgres-traceabilitytools-data:/var/lib/postgresql/data
+      - ./scripts/postgres-init.sql:/docker-entrypoint-initdb.d/01-postgres-init.sql:ro
     restart: unless-stopped
 
 volumes:

@@ -1,8 +1,4 @@
-import {
-  listTools,
-  getAvailableCategories,
-  getAvailableFeatures,
-} from "@/server/data/tools";
+import { listTools, getAvailableCategories } from "@/server/data/tools";
 import { FilterBar } from "@/components/tools/filter-bar";
 import { ToolTable } from "@/components/tools/tool-table";
 import { COMPARE_LIMIT } from "@/lib/constants";
@@ -15,16 +11,13 @@ export default async function ToolsPage({
   const params = await searchParams;
   const query = typeof params.q === "string" ? params.q : "";
   const categories = params.category ? arrayify(params.category) : [];
-  const tags = params.tag ? arrayify(params.tag) : [];
 
-  const [tools, availableCategories, availableFeatures] = await Promise.all([
+  const [tools, availableCategories] = await Promise.all([
     listTools({
       query,
       categories,
-      tags,
     }),
     getAvailableCategories(),
-    getAvailableFeatures(),
   ]);
 
   return (
@@ -32,9 +25,7 @@ export default async function ToolsPage({
       <FilterBar
         defaultQuery={query}
         defaultCategories={categories}
-        defaultTags={tags}
         availableCategories={availableCategories}
-        availableFeatures={availableFeatures}
       />
       <div className="space-y-4">
         <div>

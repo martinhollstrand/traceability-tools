@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
     optimizePackageImports: ["lucide-react", "zustand"],
+    // The Excel import uses Server Actions (multipart/form-data).
+    // Default is 1MB; increase to support larger XLSX uploads.
+    serverActions: {
+      bodySizeLimit: "50mb",
+    },
   },
   // Turbopack configuration (empty to allow webpack config when --webpack is used)
   // For production builds, we use --webpack flag to leverage webpack's IgnorePlugin

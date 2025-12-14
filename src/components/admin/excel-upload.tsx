@@ -32,7 +32,7 @@ export function ExcelUpload() {
   };
 
   return (
-    <Card className="space-y-4">
+    <Card className="w-full max-w-full min-w-0 space-y-4 overflow-hidden">
       <div className="space-y-2">
         <h3 className="text-xl font-semibold text-[hsl(var(--foreground))]">
           Ladda upp Excel
@@ -100,14 +100,14 @@ export function ExcelUpload() {
         )}
       </form>
       {previewRows.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
+        <div className="w-full max-w-full min-w-0 overflow-x-auto">
+          <table className="w-max min-w-full table-auto text-left text-sm">
             <thead>
               <tr>
                 {columns.map((column) => (
                   <th
                     key={column}
-                    className="border-b border-[hsl(var(--border))] px-4 py-2"
+                    className="border-b border-[hsl(var(--border))] px-4 py-2 whitespace-nowrap"
                   >
                     {column}
                   </th>
@@ -118,7 +118,10 @@ export function ExcelUpload() {
               {previewRows.map((row, index) => (
                 <tr key={index} className="border-b border-[hsl(var(--border))]">
                   {columns.map((column) => (
-                    <td key={column} className="px-4 py-2 text-[hsl(var(--muted))]">
+                    <td
+                      key={column}
+                      className="px-4 py-2 whitespace-nowrap text-[hsl(var(--muted))]"
+                    >
                       {String(row[column] ?? "")}
                     </td>
                   ))}

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, ilike, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "@/server/db";
 import { reportMetadataTable, toolsTable } from "@/server/db/schema";
@@ -11,15 +11,29 @@ import type { ReportMetadata } from "@/lib/validators/report";
 type ToolFilters = {
   query?: string;
   categories?: string[];
-  tags?: string[];
 };
 
 export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]> => {
-  const { query, categories, tags } = filters;
+  const { query, categories } = filters;
   const conditions = [eq(toolsTable.status, "published")];
 
   if (query) {
-    conditions.push(ilike(toolsTable.name, `%${query}%`));
+    const pattern = `%${query}%`;
+    // drizzle-orm `or()` can be typed as possibly undefined; use raw SQL to keep types strict.
+    conditions.push(sql`
+      (
+        ${toolsTable.name} ILIKE ${pattern}
+        OR coalesce(${toolsTable.vendor}, '') ILIKE ${pattern}
+        OR coalesce(${toolsTable.category}, '') ILIKE ${pattern}
+        OR coalesce(${toolsTable.summary}, '') ILIKE ${pattern}
+        OR coalesce(${toolsTable.website}, '') ILIKE ${pattern}
+        OR ${toolsTable.name} % ${query}
+        OR coalesce(${toolsTable.vendor}, '') % ${query}
+        OR coalesce(${toolsTable.category}, '') % ${query}
+        OR coalesce(${toolsTable.summary}, '') % ${query}
+        OR coalesce(${toolsTable.website}, '') % ${query}
+      )
+    `);
   }
 
   if (categories?.length) {
@@ -32,16 +46,7 @@ export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]
     .where(and(...conditions))
     .orderBy(desc(toolsTable.updatedAt));
 
-  const normalized = rows.map(mapToolRow);
-
-  if (!tags?.length) {
-    return normalized;
-  }
-
-  return normalized.filter((row) => {
-    const featureList = Array.isArray(row.features) ? row.features : [];
-    return tags.every((tag) => featureList.includes(tag));
-  });
+  return rows.map(mapToolRow);
 });
 
 export const getToolBySlug = cache(async (slug: string) => {
@@ -85,25 +90,6 @@ export const getAvailableCategories = cache(async (): Promise<string[]> => {
   });
 
   return Array.from(categorySet).sort();
-});
-
-export const getAvailableFeatures = cache(async (): Promise<string[]> => {
-  const rows = await db
-    .select({ highlights: toolsTable.highlights })
-    .from(toolsTable)
-    .where(eq(toolsTable.status, "published"));
-
-  const featureSet = new Set<string>();
-  rows.forEach((row) => {
-    const highlights = (row.highlights as string[]) ?? [];
-    highlights.forEach((highlight) => {
-      if (highlight && highlight.trim()) {
-        featureSet.add(highlight.trim());
-      }
-    });
-  });
-
-  return Array.from(featureSet).sort();
 });
 
 export async function revalidateToolsTag(ids?: string[]) {
