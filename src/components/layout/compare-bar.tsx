@@ -18,7 +18,7 @@ export function CompareBar() {
 
   return (
     <div className="fixed inset-x-0 bottom-4 z-40">
-      <div className="border-primary/60 from-primary via-primary/95 to-accent mx-auto flex max-w-3xl items-center justify-between rounded-full border-2 bg-gradient-to-r px-4 py-2 shadow-[0_30px_70px_-40px_hsl(var(--primary)/0.8),0_0_0_1px_hsl(var(--primary)/0.3)] backdrop-blur-xl">
+      <div className="border-primary/60 from-primary via-primary/95 to-accent mx-auto flex max-w-3xl items-center justify-between rounded-md border-2 bg-gradient-to-r px-4 py-2 shadow-[0_30px_70px_-40px_hsl(var(--primary)/0.8),0_0_0_1px_hsl(var(--primary)/0.3)] backdrop-blur-xl">
         <div className="flex flex-wrap gap-2 pr-4">
           {selections.map((item) => (
             <Badge

@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import * as Popover from "@radix-ui/react-popover";
+import { ChevronDown, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,7 +23,8 @@ export function FilterBar({
   const searchParams = useSearchParams();
   const [query, setQuery] = React.useState(defaultQuery);
   const [categories, setCategories] = React.useState<string[]>(defaultCategories);
-  const [categoriesOpen, setCategoriesOpen] = React.useState(false);
+  const [categoryPickerOpen, setCategoryPickerOpen] = React.useState(false);
+  const [categoryFilter, setCategoryFilter] = React.useState("");
 
   // Sync state with URL params when they change
   React.useEffect(() => {
@@ -31,6 +34,13 @@ export function FilterBar({
     setQuery(urlQuery);
     setCategories(urlCategories);
   }, [searchParams]);
+
+  React.useEffect(() => {
+    // Clear the internal search when the picker closes.
+    if (!categoryPickerOpen) {
+      setCategoryFilter("");
+    }
+  }, [categoryPickerOpen]);
 
   function toggle(list: string[], value: string) {
     return list.includes(value)
@@ -57,8 +67,15 @@ export function FilterBar({
   function handleReset() {
     setQuery("");
     setCategories([]);
+    setCategoryFilter("");
     router.push("/tools");
   }
+
+  const filteredCategories = React.useMemo(() => {
+    const q = categoryFilter.trim().toLowerCase();
+    if (!q) return availableCategories;
+    return availableCategories.filter((category) => category.toLowerCase().includes(q));
+  }, [availableCategories, categoryFilter]);
 
   return (
     <form
@@ -96,19 +113,10 @@ export function FilterBar({
         )}
       </div>
       <div>
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            className="text-muted-foreground flex items-center gap-2 text-xs font-semibold uppercase"
-            onClick={() => setCategoriesOpen((open) => !open)}
-            aria-expanded={categoriesOpen}
-            aria-controls="tool-categories"
-          >
+        <div className="mb-3 flex items-center justify-between">
+          <label className="text-muted-foreground text-xs font-semibold uppercase">
             Categories
-            <span className="text-muted-foreground/60 normal-case">
-              {categoriesOpen ? "Hide" : "Show"}
-            </span>
-          </button>
+          </label>
           {categories.length > 0 && (
             <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-semibold">
               {categories.length} selected
@@ -116,38 +124,117 @@ export function FilterBar({
           )}
         </div>
 
-        {!categoriesOpen && categories.length > 0 && (
-          <p className="text-muted-foreground/80 text-xs">
-            {categories.slice(0, 3).join(", ")}
-            {categories.length > 3 ? ` +${categories.length - 3} more` : ""}
-          </p>
-        )}
-
-        {categoriesOpen && (
-          <div id="tool-categories" className="mt-2 flex max-h-80 flex-wrap gap-2">
-            {availableCategories.length === 0 ? (
-              <p className="text-muted-foreground text-xs">No categories available</p>
-            ) : (
-              availableCategories.map((category) => {
-                const active = categories.includes(category);
-                return (
-                  <Button
-                    key={category}
-                    variant={active ? "selected" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      const newCategories = toggle(categories, category);
-                      setCategories(newCategories);
-                      updateUrl(query, newCategories);
-                    }}
-                  >
-                    {category}
-                  </Button>
-                );
-              })
-            )}
+        {categories.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <span
+                key={category}
+                className="border-border/70 inline-flex items-center gap-2 rounded-full border bg-[hsl(var(--surface-strong))]/70 px-3 py-1 text-xs"
+              >
+                <span className="max-w-[200px] truncate">{category}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = categories.filter((item) => item !== category);
+                    setCategories(next);
+                    updateUrl(query, next);
+                  }}
+                  className="text-muted-foreground hover:text-foreground rounded-full p-0.5"
+                  aria-label={`Remove category ${category}`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            ))}
           </div>
         )}
+
+        <Popover.Root open={categoryPickerOpen} onOpenChange={setCategoryPickerOpen}>
+          <Popover.Trigger asChild>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full justify-between"
+            >
+              Choose categories
+              <ChevronDown className="h-4 w-4 opacity-70" />
+            </Button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              align="start"
+              side="bottom"
+              sideOffset={10}
+              className="border-border/80 text-foreground z-50 max-h-[420px] w-[320px] overflow-hidden rounded-3xl border bg-[hsl(var(--surface))] p-4 shadow-[0_35px_90px_-55px_hsl(var(--primary)/0.55)]"
+            >
+              <div className="flex max-h-full flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <Search className="text-muted-foreground h-4 w-4" />
+                  <Input
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    placeholder="Filter categories…"
+                    className="h-10"
+                  />
+                </div>
+
+                <div className="border-border/60 min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border bg-[hsl(var(--background))] p-2">
+                  {filteredCategories.length === 0 ? (
+                    <p className="text-muted-foreground px-2 py-6 text-center text-xs">
+                      No categories match “{categoryFilter.trim()}”.
+                    </p>
+                  ) : (
+                    filteredCategories.map((category) => {
+                      const active = categories.includes(category);
+                      return (
+                        <label
+                          key={category}
+                          className={cn(
+                            "flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2 text-sm hover:bg-[hsl(var(--surface-strong))]/70",
+                            active && "bg-primary/5",
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={active}
+                            onChange={() => {
+                              const next = toggle(categories, category);
+                              setCategories(next);
+                              updateUrl(query, next);
+                            }}
+                            className="h-4 w-4"
+                          />
+                          <span className="flex-1">{category}</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setCategories([]);
+                      updateUrl(query, []);
+                    }}
+                    disabled={categories.length === 0}
+                  >
+                    Clear
+                  </Button>
+                  <Popover.Close asChild>
+                    <Button type="button" variant="secondary" size="sm">
+                      Done
+                    </Button>
+                  </Popover.Close>
+                </div>
+              </div>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
       </div>
       <div className="flex items-center justify-end gap-2">
         <Button type="button" variant="ghost" onClick={handleReset}>
