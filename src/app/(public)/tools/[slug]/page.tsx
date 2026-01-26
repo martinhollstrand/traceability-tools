@@ -51,7 +51,6 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
     questions,
   );
 
-  const capabilityEntries = Object.entries(tool.capabilities ?? {});
   const comparisonEntries = Object.entries(tool.comparisonData ?? {});
 
   // Create a map of question codes to question data
@@ -62,7 +61,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
       <Container className="space-y-8">
         <div className="space-y-3">
           <p className="text-sm font-semibold tracking-[0.3em] text-[hsl(var(--muted))] uppercase">
-            {toolFields.category ?? "Okategoriserad"}
+            {toolFields.category ?? "Uncategorized"}
           </p>
           <h1 className="text-4xl font-semibold text-[hsl(var(--foreground))]">
             {toolFields.name}
@@ -70,31 +69,11 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
           {tool.summary && <Text variant="lead">{tool.summary}</Text>}
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-6">
           <Card className="space-y-4">
-            <h2 className="text-xl font-semibold">Kapabiliteter</h2>
-            {capabilityEntries.length === 0 ? (
-              <Text>Inga kapabiliteter dokumenterade ännu.</Text>
-            ) : (
-              <dl className="space-y-3">
-                {capabilityEntries.map(([key, value]) => (
-                  <div key={key}>
-                    <dt className="text-sm tracking-[0.2em] text-[hsl(var(--muted))] uppercase">
-                      {key}
-                    </dt>
-                    <dd className="text-[hsl(var(--foreground))]">
-                      {Array.isArray(value) ? value.join(", ") : String(value)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-          </Card>
-
-          <Card className="space-y-4">
-            <h2 className="text-xl font-semibold">Jämförelsedata</h2>
+            <h2 className="text-xl font-semibold">Comparison Information</h2>
             {comparisonEntries.length === 0 ? (
-              <Text>Inga datapunkter ännu.</Text>
+              <Text>No data points yet.</Text>
             ) : (
               <dl className="space-y-4">
                 {comparisonEntries.map(([key, value]) => {

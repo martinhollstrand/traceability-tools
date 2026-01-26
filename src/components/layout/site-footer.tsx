@@ -1,4 +1,4 @@
-import Link from "next/link";
+// import Link from "next/link";
 
 export function SiteFooter() {
   return (
@@ -9,7 +9,7 @@ export function SiteFooter() {
           &copy; {new Date().getFullYear()} Traceability Tools. Crafted for responsible
           supply chains.
         </p>
-        <div className="flex gap-4">
+        {/* <div className="flex gap-4">
           <Link
             href="/docs/privacy"
             className="hover:text-foreground rounded-full px-3 py-1 transition hover:bg-[hsl(var(--surface-strong))]/70"
@@ -28,7 +28,7 @@ export function SiteFooter() {
           >
             Contact
           </Link>
-        </div>
+        </div> */}
       </div>
     </footer>
   );

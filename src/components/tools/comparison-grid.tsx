@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, type ReactNode, useRef, useEffect } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -168,7 +169,17 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
   }> = [
     {
       label: "Vendor",
-      render: (tool) => tool.vendor || "—",
+      render: (tool) =>
+        tool.vendor ? (
+          <Link
+            href={`/tools/${tool.slug}`}
+            className="text-foreground hover:text-primary underline-offset-2 hover:underline"
+          >
+            {tool.vendor}
+          </Link>
+        ) : (
+          "—"
+        ),
     },
     {
       label: "Summary",
@@ -297,15 +308,18 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
                 className="border-border/40 grid items-stretch gap-0 border-b bg-[hsl(var(--surface-strong))]/70"
                 style={gridTemplateStyle}
               >
-                <div className="text-muted-foreground border-border/40 sticky left-0 z-10 border-r bg-[hsl(var(--surface-strong))] px-6 py-4 text-xs font-semibold tracking-[0.4em] uppercase shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]">
+                <div className="text-muted-foreground border-border/40 text-md sticky left-0 z-10 border-r bg-[hsl(var(--surface-strong))] px-6 py-4 font-semibold uppercase shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]">
                   Dimension
                 </div>
                 {tools.map((tool) => (
                   <div key={tool.id} className="flex flex-col gap-1 px-6 py-4">
-                    <span className="text-foreground text-base font-semibold">
+                    <Link
+                      href={`/tools/${tool.slug}`}
+                      className="text-foreground hover:text-primary text-xl font-semibold underline-offset-2 hover:underline"
+                    >
                       {tool.name}
-                    </span>
-                    <span className="text-muted-foreground text-xs tracking-[0.35em] uppercase">
+                    </Link>
+                    <span className="text-muted-foreground text-xs uppercase">
                       {tool.category}
                     </span>
                   </div>
@@ -322,9 +336,7 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
                     style={gridTemplateStyle}
                   >
                     <div className="text-muted-foreground border-border/40 sticky left-0 z-10 flex flex-col gap-1 border-r bg-[hsl(var(--surface))] px-6 py-5 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]">
-                      <span className="text-xs font-semibold tracking-[0.35em] uppercase">
-                        {row.label}
-                      </span>
+                      <span className="text-md font-semibold uppercase">{row.label}</span>
                       {row.supportiveText && (
                         <span className="text-muted-foreground/70 text-[10px] leading-tight font-normal tracking-normal normal-case">
                           {row.supportiveText}
@@ -381,7 +393,12 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
           <Card key={tool.id}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between gap-2 text-base">
-                <span>{tool.name}</span>
+                <Link
+                  href={`/tools/${tool.slug}`}
+                  className="hover:text-primary underline-offset-2 hover:underline"
+                >
+                  {tool.name}
+                </Link>
                 <Badge variant="secondary">{tool.category}</Badge>
               </CardTitle>
             </CardHeader>
