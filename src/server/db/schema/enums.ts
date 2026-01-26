@@ -10,3 +10,14 @@ export const toolVersionStatusEnum = pgEnum("tool_version_status", [
 ]);
 
 export const adminRoleEnum = pgEnum("admin_role", ["admin", "editor", "viewer"]);
+
+// Question types: metadata (maps to tool fields) vs survey (actual survey questions)
+export const questionTypeEnum = pgEnum("question_type", ["metadata", "survey"]);
+
+// Tool fields that metadata questions can map to
+export const mappedFieldEnum = pgEnum("mapped_field", [
+  "name",
+  "vendor",
+  "website",
+  "category",
+]);

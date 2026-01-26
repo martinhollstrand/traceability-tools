@@ -5,6 +5,7 @@ import { requireAdminSession } from "@/server/auth/session";
 const ADMIN_NAV = [
   { label: "Dashboard", href: "/admin" },
   { label: "Data imports", href: "/admin/imports" },
+  { label: "Questions", href: "/admin/questions" },
   { label: "Reports", href: "/admin/reports" },
 ];
 

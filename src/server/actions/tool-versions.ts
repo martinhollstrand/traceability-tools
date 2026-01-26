@@ -6,9 +6,61 @@ import { z } from "zod";
 import { createHash } from "crypto";
 import { read, utils } from "xlsx";
 import { getDb } from "@/server/db";
-import { toolVersionsTable, toolsTable } from "@/server/db/schema";
+import { toolVersionsTable, toolsTable, surveyQuestionsTable } from "@/server/db/schema";
 import { requireAdminSession } from "@/server/auth/session";
 import { generateToolSummary } from "@/server/ai/summary";
+
+// Regex to match question codes like [001], [002], etc.
+const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
+
+// Type definitions for question type and mapped field
+type QuestionType = "metadata" | "survey";
+type MappedField = "name" | "vendor" | "website" | "category" | null;
+
+// Patterns to auto-detect metadata questions based on question text
+const METADATA_PATTERNS: Array<{ pattern: RegExp; field: MappedField }> = [
+  { pattern: /\b(tool\s*name|name\s*of.*tool|product\s*name)\b/i, field: "name" },
+  { pattern: /\b(vendor|company|provider|manufacturer|supplier)\b/i, field: "vendor" },
+  { pattern: /\b(website|web\s*address|url|homepage|web\s*page)\b/i, field: "website" },
+  { pattern: /\b(category|main\s*focus|type|classification)\b/i, field: "category" },
+];
+
+/**
+ * Detect if a question text indicates a metadata field.
+ * Returns the mapped field if detected, null otherwise.
+ */
+function detectMetadataField(questionText: string): MappedField {
+  for (const { pattern, field } of METADATA_PATTERNS) {
+    if (pattern.test(questionText)) {
+      return field;
+    }
+  }
+  return null;
+}
+
+/**
+ * Parse a column header to extract question code and text.
+ * Format: "Question text [XXX]" where XXX is the unique code.
+ * Returns null if the header doesn't match the pattern.
+ */
+function parseQuestionHeader(header: string): {
+  code: string;
+  text: string;
+  questionType: QuestionType;
+  mappedField: MappedField;
+} | null {
+  const match = header.match(QUESTION_CODE_REGEX);
+  if (!match) return null;
+
+  const code = match[1];
+  const text = header.replace(QUESTION_CODE_REGEX, "").trim();
+
+  // Auto-detect if this is a metadata field
+  const mappedField = detectMetadataField(text);
+  const questionType: QuestionType = mappedField ? "metadata" : "survey";
+
+  return { code, text, questionType, mappedField };
+}
 
 const uploadSchema = z.object({
   filename: z.string().min(1, "Filnamn saknas"),
@@ -159,6 +211,79 @@ export async function uploadExcelAction(
       })
       .returning();
 
+    // Extract and upsert survey questions from column headers
+    const questionHeaders = parsed.data.columns
+      .map((col) => ({ original: col, parsed: parseQuestionHeader(col) }))
+      .filter((q) => q.parsed !== null) as Array<{
+      original: string;
+      parsed: {
+        code: string;
+        text: string;
+        questionType: QuestionType;
+        mappedField: MappedField;
+      };
+    }>;
+
+    // Create mappings for later use during tool processing
+    const columnToQuestionCode = new Map<string, string>();
+    const codeToQuestion = new Map<
+      string,
+      {
+        questionType: QuestionType;
+        mappedField: MappedField;
+        original: string;
+      }
+    >();
+
+    for (const { original, parsed: question } of questionHeaders) {
+      columnToQuestionCode.set(original, question.code);
+
+      // Upsert the question: if code exists, update text; otherwise insert
+      const existingQuestion = await db
+        .select()
+        .from(surveyQuestionsTable)
+        .where(eq(surveyQuestionsTable.code, question.code))
+        .limit(1);
+
+      if (existingQuestion.length > 0) {
+        // Update the question text if it changed
+        // Preserve existing forComparison, supportiveText, questionType and mappedField
+        // (admin may have overridden the auto-detected values)
+        await db
+          .update(surveyQuestionsTable)
+          .set({
+            questionText: question.text,
+            sortOrder: question.code,
+            updatedAt: new Date(),
+          })
+          .where(eq(surveyQuestionsTable.code, question.code));
+
+        // Use existing question's type/mapping (admin may have changed it)
+        codeToQuestion.set(question.code, {
+          questionType: existingQuestion[0].questionType as QuestionType,
+          mappedField: existingQuestion[0].mappedField as MappedField,
+          original,
+        });
+      } else {
+        // Insert new question with auto-detected type and mapping
+        await db.insert(surveyQuestionsTable).values({
+          code: question.code,
+          questionText: question.text,
+          questionType: question.questionType,
+          mappedField: question.mappedField,
+          forComparison: false,
+          sortOrder: question.code,
+          versionId: version.id,
+        });
+
+        codeToQuestion.set(question.code, {
+          questionType: question.questionType,
+          mappedField: question.mappedField,
+          original,
+        });
+      }
+    }
+
     // Fetch existing tools to map by importId and slug
     const existingTools = await db.select().from(toolsTable);
     const toolMapById = new Map<string, (typeof existingTools)[0]>();
@@ -186,7 +311,42 @@ export async function uploadExcelAction(
         continue;
       }
 
-      const name = getValue(row, ["Tool name", "Name", "name"]) || "Untitled Tool";
+      // Build tool field values from metadata questions first
+      const toolFieldsFromQuestions: Record<string, string> = {
+        name: "",
+        vendor: "",
+        website: "",
+        category: "",
+      };
+
+      // Process each column to extract metadata field values
+      for (const [columnName, value] of Object.entries(row)) {
+        if (value === "" || value === null || value === undefined) continue;
+
+        const questionCode = columnToQuestionCode.get(columnName);
+        if (questionCode) {
+          const questionInfo = codeToQuestion.get(questionCode);
+          if (questionInfo?.questionType === "metadata" && questionInfo.mappedField) {
+            toolFieldsFromQuestions[questionInfo.mappedField] = String(value);
+          }
+        }
+      }
+
+      // Fall back to fuzzy matching for fields not mapped via questions
+      const name =
+        toolFieldsFromQuestions.name ||
+        getValue(row, ["Tool name", "Name", "name"]) ||
+        "Untitled Tool";
+      const vendor =
+        toolFieldsFromQuestions.vendor ||
+        getValue(row, ["Company", "Vendor", "vendor", "Provider"]);
+      const website =
+        toolFieldsFromQuestions.website ||
+        getValue(row, ["Web", "Website", "website", "URL"]);
+      const category =
+        toolFieldsFromQuestions.category ||
+        getValue(row, ["Main focus/category", "Category", "category", "Type"]);
+
       const slug = slugify(name);
 
       // Try to match by ID first, then by slug
@@ -218,8 +378,8 @@ export async function uploadExcelAction(
         }
       }
 
-      // Determine comparison data
-      // Rule: Keys not in core fields and keys with explicit prefix "Compare: "
+      // Determine comparison data - only include survey type questions
+      // Also respect legacy core fields for backward compatibility
       const coreFields = new Set([
         "id",
         "importid",
@@ -247,15 +407,27 @@ export async function uploadExcelAction(
         // Clean value: skip empty strings or pure whitespace
         if (value === "" || value === null || value === undefined) return;
 
-        // Check for explicit prefix
+        // Check if this column is a question with a code
+        const questionCode = columnToQuestionCode.get(key);
+        if (questionCode) {
+          const questionInfo = codeToQuestion.get(questionCode);
+          // Only include survey questions in comparison data, skip metadata
+          if (questionInfo?.questionType === "metadata") {
+            return;
+          }
+          // Include survey questions in comparison data
+          comparisonData[key] = value;
+          return;
+        }
+
+        // Check for explicit prefix (legacy support)
         if (lowerKey.startsWith("compare:") || lowerKey.startsWith("comp:")) {
-          // Remove prefix for clean key
           const cleanKey = key.replace(/^(Compare|Comp|compare|comp):\s*/i, "");
           comparisonData[cleanKey] = value;
           return;
         }
 
-        // Check if not core field
+        // Check if not core field (legacy support for columns without codes)
         if (!coreFields.has(lowerKey)) {
           comparisonData[key] = value;
         }
@@ -263,11 +435,10 @@ export async function uploadExcelAction(
 
       const toolData = {
         name,
-        // slug is handled conditionally
-        vendor: getValue(row, ["Company", "Vendor", "vendor", "Provider"]),
+        vendor,
         summary,
-        category: getValue(row, ["Main focus/category", "Category", "category", "Type"]),
-        website: getValue(row, ["Web", "Website", "website", "URL"]),
+        category,
+        website,
         status: "published" as const,
         rawData: row,
         comparisonData,
@@ -328,6 +499,7 @@ export async function uploadExcelAction(
           updatedCount,
           createdCount,
           skippedCount,
+          questionsCount: questionHeaders.length,
         },
       })
       .where(eq(toolVersionsTable.id, version.id));

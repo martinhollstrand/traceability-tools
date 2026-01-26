@@ -1,0 +1,1 @@
+ALTER TABLE "survey_questions" ADD COLUMN "is_multiple_choice" boolean DEFAULT false NOT NULL;

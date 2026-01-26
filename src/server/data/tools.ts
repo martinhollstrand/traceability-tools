@@ -119,6 +119,7 @@ function mapToolRow(row: typeof toolsTable.$inferSelect): Tool {
     metadata,
     capabilities: (row.capabilities as Record<string, unknown>) ?? undefined,
     comparisonData: (row.comparisonData as Record<string, unknown>) ?? undefined,
+    rawData: (row.rawData as Record<string, unknown>) ?? undefined,
     featureScore: (row.featureScore as Record<string, number>) ?? undefined,
     updatedAt: row.updatedAt?.toISOString() ?? new Date().toISOString(),
   };

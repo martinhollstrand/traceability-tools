@@ -1,4 +1,6 @@
 import { listTools, getAvailableCategories } from "@/server/data/tools";
+import { getSurveyQuestions } from "@/server/actions/survey-questions";
+import { getToolFieldsFromMappings } from "@/server/data/tool-fields";
 import { FilterBar } from "@/components/tools/filter-bar";
 import { ToolTable } from "@/components/tools/tool-table";
 import { COMPARE_LIMIT } from "@/lib/constants";
@@ -12,13 +14,36 @@ export default async function ToolsPage({
   const query = typeof params.q === "string" ? params.q : "";
   const categories = params.category ? arrayify(params.category) : [];
 
-  const [tools, availableCategories] = await Promise.all([
+  const [rawTools, availableCategories, allQuestions] = await Promise.all([
     listTools({
       query,
       categories,
     }),
     getAvailableCategories(),
+    getSurveyQuestions(),
   ]);
+
+  // Enrich tools with dynamically mapped field values
+  const tools = rawTools.map((tool) => {
+    const dynamicFields = getToolFieldsFromMappings(
+      {
+        name: tool.name,
+        vendor: tool.vendor,
+        website: tool.website,
+        category: tool.category,
+        rawData: (tool.rawData as Record<string, unknown>) ?? {},
+      },
+      allQuestions,
+    );
+
+    return {
+      ...tool,
+      name: dynamicFields.name,
+      vendor: dynamicFields.vendor ?? tool.vendor,
+      website: dynamicFields.website ?? tool.website,
+      category: dynamicFields.category ?? tool.category,
+    };
+  });
 
   return (
     <div className="grid gap-8 lg:grid-cols-[320px,1fr]">

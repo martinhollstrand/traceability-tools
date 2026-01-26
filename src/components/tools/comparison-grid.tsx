@@ -8,14 +8,37 @@ import { ThinkingLoader } from "@/components/ui/thinking-loader";
 import type { Tool } from "@/lib/validators/tool";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp, Sparkles, ChevronRight } from "lucide-react";
+import type { SurveyQuestion } from "@/server/actions/survey-questions";
 
 type ComparisonGridProps = {
   tools: Tool[];
+  questions?: SurveyQuestion[];
 };
+
+// Regex to extract question code from column header (e.g., "Question text [001]" -> "001")
+const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
+
+function extractQuestionCode(header: string): string | null {
+  const match = header.match(QUESTION_CODE_REGEX);
+  return match ? match[1] : null;
+}
+
+/**
+ * Parse a multiple choice value (semicolon or comma separated) into an array.
+ * Handles common separators: semicolon (;), comma followed by space (, )
+ */
+function parseMultipleChoiceValue(value: string): string[] {
+  // Split by semicolon first (most common in the data)
+  // Then filter out empty strings and trim whitespace
+  return value
+    .split(/[;]/)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
 
 const summaryDisabledCopy = "AI summary is disabled in this environment.";
 
-export function ComparisonGrid({ tools }: ComparisonGridProps) {
+export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
   const [summary, setSummary] = useState<string>("");
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -112,6 +135,9 @@ export function ComparisonGrid({ tools }: ComparisonGridProps) {
   const gridMinWidth = 220 + tools.length * baseColumnWidth;
   const gridTemplateStyle = { gridTemplateColumns };
 
+  // Create a map of question codes to question data for quick lookup
+  const questionsByCode = new Map(questions.map((q) => [q.code, q]));
+
   // Collect all unique comparison keys
   const allComparisonKeys = Array.from(
     new Set(
@@ -121,8 +147,22 @@ export function ComparisonGrid({ tools }: ComparisonGridProps) {
     ),
   ).sort();
 
+  // Filter comparison keys based on questions marked for comparison
+  // If we have questions data, only show keys that match comparison-enabled questions
+  // Otherwise (for backward compatibility), show all keys
+  const filteredComparisonKeys =
+    questions.length > 0
+      ? allComparisonKeys.filter((key) => {
+          const code = extractQuestionCode(key);
+          if (!code) return false; // Skip keys without question codes
+          const question = questionsByCode.get(code);
+          return question?.forComparison === true;
+        })
+      : allComparisonKeys;
+
   const rows: Array<{
     label: string;
+    supportiveText?: string | null;
     subtle?: boolean;
     render: (tool: Tool) => ReactNode;
   }> = [
@@ -138,20 +178,49 @@ export function ComparisonGrid({ tools }: ComparisonGridProps) {
         </p>
       ),
     },
-    ...allComparisonKeys.map((key) => ({
-      label: key.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase()),
-      render: (tool: Tool) => {
-        const val = (tool.comparisonData as Record<string, unknown>)?.[key];
-        if (val === undefined || val === null || val === "") {
-          return <span className="text-muted-foreground text-sm">—</span>;
-        }
-        return (
-          <span className="text-sm">
-            {typeof val === "object" ? JSON.stringify(val) : String(val)}
-          </span>
-        );
-      },
-    })),
+    ...filteredComparisonKeys.map((key) => {
+      const code = extractQuestionCode(key);
+      const question = code ? questionsByCode.get(code) : null;
+      // Use question text if available, otherwise clean up the key
+      const label =
+        question?.questionText ??
+        key
+          .replace(QUESTION_CODE_REGEX, "")
+          .trim()
+          .replace(/([A-Z])/g, " $1")
+          .replace(/^./, (str) => str.toUpperCase());
+
+      return {
+        label,
+        supportiveText: question?.supportiveText,
+        render: (tool: Tool) => {
+          const val = (tool.comparisonData as Record<string, unknown>)?.[key];
+          if (val === undefined || val === null || val === "") {
+            return <span className="text-muted-foreground text-sm">—</span>;
+          }
+
+          const stringVal = typeof val === "object" ? JSON.stringify(val) : String(val);
+
+          // Check if this is a multiple choice question
+          if (question?.isMultipleChoice) {
+            const items = parseMultipleChoiceValue(stringVal);
+            if (items.length > 1) {
+              return (
+                <ul className="list-disc space-y-0.5 pl-4 text-sm">
+                  {items.map((item, index) => (
+                    <li key={index} className="text-sm">
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              );
+            }
+          }
+
+          return <span className="text-sm">{stringVal}</span>;
+        },
+      };
+    }),
   ];
 
   const INITIAL_ROW_COUNT = 5;
@@ -252,8 +321,15 @@ export function ComparisonGrid({ tools }: ComparisonGridProps) {
                     )}
                     style={gridTemplateStyle}
                   >
-                    <div className="text-muted-foreground border-border/40 sticky left-0 z-10 flex items-start border-r bg-[hsl(var(--surface))] px-6 py-5 text-xs font-semibold tracking-[0.35em] uppercase shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]">
-                      {row.label}
+                    <div className="text-muted-foreground border-border/40 sticky left-0 z-10 flex flex-col gap-1 border-r bg-[hsl(var(--surface))] px-6 py-5 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]">
+                      <span className="text-xs font-semibold tracking-[0.35em] uppercase">
+                        {row.label}
+                      </span>
+                      {row.supportiveText && (
+                        <span className="text-muted-foreground/70 text-[10px] leading-tight font-normal tracking-normal normal-case">
+                          {row.supportiveText}
+                        </span>
+                      )}
                     </div>
                     {tools.map((tool) => (
                       <div
@@ -312,18 +388,43 @@ export function ComparisonGrid({ tools }: ComparisonGridProps) {
             <CardContent className="text-muted-foreground space-y-4 text-sm">
               <p>{tool.summary}</p>
 
-              <div className="space-y-2">
-                {allComparisonKeys.map((key) => {
+              <div className="space-y-3">
+                {filteredComparisonKeys.map((key) => {
                   const val = (tool.comparisonData as Record<string, unknown>)?.[key];
                   if (!val) return null;
+                  const code = extractQuestionCode(key);
+                  const question = code ? questionsByCode.get(code) : null;
+                  const label =
+                    question?.questionText ??
+                    key
+                      .replace(QUESTION_CODE_REGEX, "")
+                      .trim()
+                      .replace(/([A-Z])/g, " $1");
+
+                  const stringVal =
+                    typeof val === "object" ? JSON.stringify(val) : String(val);
+                  const isMultiChoice = question?.isMultipleChoice;
+                  const items = isMultiChoice ? parseMultipleChoiceValue(stringVal) : [];
+
                   return (
                     <div key={key}>
                       <p className="text-foreground mb-1 text-xs font-semibold tracking-wider uppercase">
-                        {key.replace(/([A-Z])/g, " $1")}
+                        {label}
                       </p>
-                      <p className="text-sm">
-                        {typeof val === "object" ? JSON.stringify(val) : String(val)}
-                      </p>
+                      {question?.supportiveText && (
+                        <p className="text-muted-foreground/70 mb-1 text-[10px]">
+                          {question.supportiveText}
+                        </p>
+                      )}
+                      {isMultiChoice && items.length > 1 ? (
+                        <ul className="list-disc space-y-0.5 pl-4 text-sm">
+                          {items.map((item, index) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm">{stringVal}</p>
+                      )}
                     </div>
                   );
                 })}

@@ -6,12 +6,14 @@ import { useCompareStore } from "@/store/useCompareStore";
 import { ComparisonGrid } from "@/components/tools/comparison-grid";
 import { Button } from "@/components/ui/button";
 import type { Tool } from "@/lib/validators/tool";
+import type { SurveyQuestion } from "@/server/actions/survey-questions";
 
 type CompareContentProps = {
   tools: Tool[];
+  questions: SurveyQuestion[];
 };
 
-export function CompareContent({ tools }: CompareContentProps) {
+export function CompareContent({ tools, questions }: CompareContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selections = useCompareStore((state) => state.selections);
@@ -47,7 +49,7 @@ export function CompareContent({ tools }: CompareContentProps) {
       </div>
 
       {tools.length ? (
-        <ComparisonGrid tools={tools} />
+        <ComparisonGrid tools={tools} questions={questions} />
       ) : (
         <div className="border-border/70 text-muted-foreground rounded-3xl border border-dashed p-10 text-center">
           You have not selected any tools yet. Choose them from the directory to start

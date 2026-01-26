@@ -10,6 +10,10 @@ export {
   toolEmbeddingsTable as toolEmbeddings,
   toolEmbeddingsTable,
 } from "./tool-embeddings";
+export {
+  surveyQuestionsTable as surveyQuestions,
+  surveyQuestionsTable,
+} from "./survey-questions";
 
 // Re-export relations
 export * from "./relations";

@@ -19,6 +19,7 @@ export const toolSchema = z.object({
   metadata: z.record(z.any()).optional(),
   capabilities: z.record(z.any()).optional(),
   comparisonData: z.record(z.any()).optional(),
+  rawData: z.record(z.any()).optional(),
   featureScore: z.record(z.number()).optional(),
   updatedAt: z.string(),
 });
