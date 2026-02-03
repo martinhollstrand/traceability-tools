@@ -4,7 +4,10 @@ import { NextResponse } from "next/server";
 const SESSION_COOKIE = "traceabilitytools-admin";
 
 export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith("/admin")) {
+  const { pathname } = request.nextUrl;
+
+  // Admin auth check
+  if (pathname.startsWith("/admin")) {
     const session = request.cookies.get(SESSION_COOKIE)?.value;
     const accessKey = process.env.ADMIN_ACCESS_KEY ?? "dev-admin";
     if (session !== accessKey) {
@@ -13,9 +16,26 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  // Add pathname to request headers for layout to detect current route
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    /*
+     * Match all request paths except for:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
+     * - public files (images, etc.)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.png$|.*\\.jpg$|.*\\.svg$).*)",
+  ],
 };
