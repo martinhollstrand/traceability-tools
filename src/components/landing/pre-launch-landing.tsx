@@ -97,22 +97,31 @@ export function PreLaunchLanding() {
       </div>
 
       {/* Partner logos footer */}
-      <footer className="mt-8 w-full rounded-3xl bg-[#0a1628] px-8 py-12">
+      <footer className="border-border/40 mt-8 w-full rounded-3xl border bg-[hsl(var(--surface))]/80 px-8 py-12">
         <div className="flex flex-col items-center justify-center gap-8">
           <Image
             src="/Logotyper_fot A4.png"
             alt="Partner logos - Interreg, European Union, Science Park Borås, and others"
-            width={800}
-            height={100}
-            className="h-auto max-h-24 w-auto brightness-0 invert"
+            width={900}
+            height={120}
+            className="h-auto max-h-28 w-auto rounded-xl"
           />
-          <Image
-            src="/PEAK63N_Logo_blue.png"
-            alt="Peak 63°N Outdoor Lab"
-            width={250}
-            height={100}
-            className="h-auto max-h-20 w-auto brightness-0 invert"
-          />
+          <div className="flex items-center justify-center gap-6">
+            <Image
+              src="/TF2030_Logotyp_Mark_Pos.png"
+              alt="Textile & Fashion 2030"
+              width={80}
+              height={80}
+              className="h-auto max-h-14 w-auto"
+            />
+            <Image
+              src="/PEAK63N_Logo_blue.png"
+              alt="Peak 63°N Outdoor Lab"
+              width={180}
+              height={80}
+              className="h-auto max-h-12 w-auto"
+            />
+          </div>
         </div>
       </footer>
     </div>
