@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import { createHash } from "crypto";
 import { read, utils } from "xlsx";
@@ -303,6 +303,7 @@ export async function uploadExcelAction(
     let updatedCount = 0;
     let createdCount = 0;
     let skippedCount = 0;
+    const processedToolIds = new Set<string>();
 
     for (const row of rows) {
       const rowId = deriveImportId(row);
@@ -466,6 +467,7 @@ export async function uploadExcelAction(
             createdAt: existingTool.createdAt,
           })
           .where(eq(toolsTable.id, existingTool.id));
+        processedToolIds.add(existingTool.id);
         updatedCount++;
       } else {
         // For new tools, handle potential slug collisions
@@ -476,16 +478,41 @@ export async function uploadExcelAction(
           suffix++;
         }
 
-        await db.insert(toolsTable).values({
-          ...toolData,
-          slug: uniqueSlug,
-        });
+        const [inserted] = await db
+          .insert(toolsTable)
+          .values({
+            ...toolData,
+            slug: uniqueSlug,
+          })
+          .returning({ id: toolsTable.id });
+
+        if (inserted?.id) {
+          processedToolIds.add(inserted.id);
+        }
 
         // Track this slug to prevent collisions within the same import batch
         createdSlugsInBatch.add(uniqueSlug);
 
         createdCount++;
       }
+    }
+
+    // Archive published tools that were not part of this import (new import replaces old responses)
+    if (processedToolIds.size > 0) {
+      await db
+        .update(toolsTable)
+        .set({ status: "archived", updatedAt: new Date() })
+        .where(
+          and(
+            eq(toolsTable.status, "published"),
+            notInArray(toolsTable.id, [...processedToolIds]),
+          ),
+        );
+    } else {
+      await db
+        .update(toolsTable)
+        .set({ status: "archived", updatedAt: new Date() })
+        .where(eq(toolsTable.status, "published"));
     }
 
     // Update version status

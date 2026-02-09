@@ -14,6 +14,10 @@ export {
   surveyQuestionsTable as surveyQuestions,
   surveyQuestionsTable,
 } from "./survey-questions";
+export {
+  landingSettingsTable as landingSettings,
+  landingSettingsTable,
+} from "./landing-settings";
 
 // Re-export relations
 export * from "./relations";

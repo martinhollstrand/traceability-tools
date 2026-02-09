@@ -8,14 +8,37 @@ import { revalidatePath } from "next/cache";
 import type { Tool } from "@/lib/validators/tool";
 import type { ReportMetadata } from "@/lib/validators/report";
 
+/** Question code used for search/filter categories (e.g. "Main focus/category [004]"). */
+const QUESTION_CODE_CATEGORY = "004";
+const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
+
+function getValueForQuestionCode(
+  comparisonData: Record<string, unknown> | null,
+  code: string,
+): string | null {
+  if (!comparisonData) return null;
+  for (const [key, value] of Object.entries(comparisonData)) {
+    const match = key.match(QUESTION_CODE_REGEX);
+    if (match?.[1] === code && value !== undefined && value !== null && value !== "") {
+      return String(value).trim();
+    }
+  }
+  return null;
+}
+
 type ToolFilters = {
   query?: string;
   categories?: string[];
+  featured?: boolean;
 };
 
 export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]> => {
-  const { query, categories } = filters;
+  const { query, categories, featured } = filters;
   const conditions = [eq(toolsTable.status, "published")];
+
+  if (featured) {
+    conditions.push(eq(toolsTable.isFeatured, true));
+  }
 
   if (query) {
     const pattern = `%${query}%`;
@@ -37,7 +60,18 @@ export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]
   }
 
   if (categories?.length) {
-    conditions.push(inArray(toolsTable.category, categories));
+    // Filter by question 004 value (stored in raw_data; 004 is often metadata so not in comparison_data)
+    const categoryPattern = `\\[${QUESTION_CODE_CATEGORY}\\]\\s*$`;
+    conditions.push(
+      sql`EXISTS (
+        SELECT 1 FROM jsonb_each_text(${toolsTable.rawData}) AS _t(_k, _v)
+        WHERE _k ~ ${categoryPattern}
+        AND trim(_v) IN (${sql.join(
+          categories.map((c) => sql`${c}`),
+          sql`, `,
+        )})
+      )`,
+    );
   }
 
   const rows = await db
@@ -76,18 +110,21 @@ export const getComparisonDataset = cache(async (ids: string[]): Promise<Tool[]>
   return rows.map(mapToolRow);
 });
 
+/** Returns distinct values from question 004 (used as search categories). Uses raw_data so 004 is included even when mapped as metadata. */
 export const getAvailableCategories = cache(async (): Promise<string[]> => {
   const rows = await db
-    .select({ category: toolsTable.category })
+    .select({ rawData: toolsTable.rawData })
     .from(toolsTable)
     .where(eq(toolsTable.status, "published"));
 
   const categorySet = new Set<string>();
-  rows.forEach((row) => {
-    if (row.category && row.category.trim()) {
-      categorySet.add(row.category.trim());
-    }
-  });
+  for (const row of rows) {
+    const value = getValueForQuestionCode(
+      (row.rawData as Record<string, unknown>) ?? null,
+      QUESTION_CODE_CATEGORY,
+    );
+    if (value) categorySet.add(value);
+  }
 
   return Array.from(categorySet).sort();
 });
@@ -122,6 +159,7 @@ function mapToolRow(row: typeof toolsTable.$inferSelect): Tool {
     rawData: (row.rawData as Record<string, unknown>) ?? undefined,
     featureScore: (row.featureScore as Record<string, number>) ?? undefined,
     updatedAt: row.updatedAt?.toISOString() ?? new Date().toISOString(),
+    isFeatured: row.isFeatured ?? false,
   };
 }
 

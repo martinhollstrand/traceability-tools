@@ -139,14 +139,18 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
   // Create a map of question codes to question data for quick lookup
   const questionsByCode = new Map(questions.map((q) => [q.code, q]));
 
-  // Collect all unique comparison keys
+  // Collect all unique comparison keys, sorted by question code (001, 002, …)
   const allComparisonKeys = Array.from(
     new Set(
       tools.flatMap((tool) =>
         Object.keys((tool.comparisonData as Record<string, unknown>) || {}),
       ),
     ),
-  ).sort();
+  ).sort((a, b) => {
+    const codeA = extractQuestionCode(a) ?? "";
+    const codeB = extractQuestionCode(b) ?? "";
+    return codeA.localeCompare(codeB);
+  });
 
   // Filter comparison keys based on questions marked for comparison
   // If we have questions data, only show keys that match comparison-enabled questions

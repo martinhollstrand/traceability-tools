@@ -22,6 +22,7 @@ export const toolSchema = z.object({
   rawData: z.record(z.any()).optional(),
   featureScore: z.record(z.number()).optional(),
   updatedAt: z.string(),
+  isFeatured: z.boolean().optional(),
 });
 
 export type Tool = z.infer<typeof toolSchema>;

@@ -1,11 +1,16 @@
 import { Suspense } from "react";
 import { listTools } from "@/server/data/tools";
+import { getLandingSettings } from "@/server/data/landing";
 import { ToolCard } from "@/components/tools/tool-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export async function MainLanding() {
-  const featuredTools = (await listTools()).slice(0, 3);
+  const [settings, featuredTools] = await Promise.all([
+    getLandingSettings(),
+    listTools({ featured: true }),
+  ]);
+  const displayTools = featuredTools.slice(0, 6);
 
   return (
     <div className="space-y-20">
@@ -19,15 +24,13 @@ export async function MainLanding() {
               variant="secondary"
               className="border-primary/30 bg-primary/15 text-primary mb-6 border"
             >
-              Private beta · Early operators welcome
+              {settings.hero.badge}
             </Badge>
             <h1 className="text-foreground max-w-3xl text-4xl leading-tight font-semibold md:text-6xl">
-              Discover, compare, and operationalize traceability tooling with confidence.
+              {settings.hero.headline}
             </h1>
             <p className="text-muted-foreground mt-6 max-w-2xl text-lg">
-              Traceability Tools keeps your sourcing, ESG, and compliance teams synced on
-              the market, integrations, and gaps—so you can deploy the right stack before
-              the competition.
+              {settings.hero.subtext}
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <Button size="lg" variant="secondary" asChild>
@@ -45,12 +48,11 @@ export async function MainLanding() {
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
             <p className="text-muted-foreground/80 text-xs tracking-[0.35em] uppercase">
-              Featured
+              {settings.featuredSection.label}
             </p>
-            <h2 className="text-3xl font-semibold">Curated shortlist</h2>
+            <h2 className="text-3xl font-semibold">{settings.featuredSection.title}</h2>
             <p className="text-muted-foreground max-w-2xl text-sm">
-              Hand-picked platforms with the strongest coverage, reliability, and
-              integration velocity.
+              {settings.featuredSection.description}
             </p>
           </div>
           <Button variant="outline" asChild>
@@ -59,7 +61,7 @@ export async function MainLanding() {
         </div>
         <Suspense fallback={<p className="text-muted-foreground">Loading tools…</p>}>
           <div className="grid gap-6 md:grid-cols-3">
-            {featuredTools.map((tool) => (
+            {displayTools.map((tool) => (
               <ToolCard key={tool.id} tool={tool} />
             ))}
           </div>
@@ -67,7 +69,7 @@ export async function MainLanding() {
       </section>
 
       <section className="grid gap-6 md:grid-cols-3">
-        {insightBullets.map((item) => (
+        {settings.insightBullets.map((item) => (
           <div
             key={item.title}
             className="border-border/40 relative overflow-hidden rounded-3xl border bg-[hsl(var(--surface))]/82 p-6 shadow-[0_22px_60px_-38px_hsl(var(--primary)/0.45)]"
@@ -83,21 +85,3 @@ export async function MainLanding() {
     </div>
   );
 }
-
-const insightBullets = [
-  {
-    title: "Living dataset",
-    copy: "Daily ingestion from vendor updates, product demos, and analyst calls ensures your view is never stale.",
-    icon: "🛰️",
-  },
-  {
-    title: "Excel-ready exports",
-    copy: "Push curated shortlists into Excel or Sheets with raw feature flags so stakeholders can remix confidently.",
-    icon: "📊",
-  },
-  {
-    title: "AI-assisted summaries",
-    copy: "Blend narrative analysis with structured metadata to uncover risks, integration complexity, and roadmap gaps.",
-    icon: "🤖",
-  },
-];
