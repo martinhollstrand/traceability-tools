@@ -6,6 +6,7 @@ export const toolSchema = z.object({
   slug: z.string(),
   vendor: z.string(),
   category: z.string(),
+  secondaryCategory: z.string().optional(),
   summary: z.string(),
   website: z.string().url(),
   logoUrl: z.string().url().optional(),

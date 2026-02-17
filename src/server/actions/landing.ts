@@ -132,6 +132,8 @@ export async function setToolFeaturedAction(
     .where(eq(toolsTable.id, toolId));
 
   revalidatePath("/");
+  revalidatePath("/main");
   revalidatePath("/admin/landing");
   revalidatePath("/admin");
+  revalidatePath("/tools");
 }

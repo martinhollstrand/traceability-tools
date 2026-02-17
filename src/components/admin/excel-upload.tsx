@@ -2,11 +2,24 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { useState } from "react";
+import { useState, useCallback, type DragEvent } from "react";
 import * as XLSX from "xlsx";
 import { uploadExcelAction, type UploadExcelState } from "@/server/actions/tool-versions";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
+import { cn } from "@/lib/utils";
+
+const ACCEPTED_TYPES = [
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/csv",
+];
+const ACCEPTED_EXTENSIONS = [".xlsx", ".xls", ".csv"];
+
+function isAcceptedFile(file: File): boolean {
+  if (ACCEPTED_TYPES.includes(file.type)) return true;
+  return ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
+}
 
 const initialState: UploadExcelState = { success: false };
 
@@ -17,9 +30,12 @@ export function ExcelUpload() {
   const [columns, setColumns] = useState<string[]>([]);
   const [previewRows, setPreviewRows] = useState<Record<string, unknown>[]>([]);
   const [regenerateAi, setRegenerateAi] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragError, setDragError] = useState("");
 
-  const handleFileChange = async (file: File) => {
+  const handleFileChange = useCallback(async (file: File) => {
     setFileName(file.name);
+    setDragError("");
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data);
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -29,7 +45,54 @@ export function ExcelUpload() {
     setRowCount(json.length);
     setColumns(Object.keys(json[0] ?? {}));
     setPreviewRows(json.slice(0, 5));
-  };
+  }, []);
+
+  const handleDragOver = useCallback((e: DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragEnter = useCallback((e: DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: DragEvent<HTMLLabelElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+
+      if (!isAcceptedFile(file)) {
+        setDragError("Filtypen stöds inte. Använd .xlsx, .xls eller .csv.");
+        return;
+      }
+
+      setDragError("");
+
+      // Update the form's file input so it is included in the FormData submission
+      const input = e.currentTarget.querySelector<HTMLInputElement>('input[type="file"]');
+      if (input) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+      }
+
+      handleFileChange(file);
+    },
+    [handleFileChange],
+  );
 
   return (
     <Card className="w-full max-w-full min-w-0 space-y-4 overflow-hidden">
@@ -43,7 +106,18 @@ export function ExcelUpload() {
         </Text>
       </div>
       <form action={formAction} className="space-y-4">
-        <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[hsl(var(--border))] px-6 py-10 text-center text-sm text-[hsl(var(--muted))] hover:border-[hsl(var(--foreground))]">
+        <label
+          className={cn(
+            "flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center text-sm transition-colors",
+            isDragging
+              ? "border-[hsl(var(--foreground))] bg-[hsl(var(--foreground))]/5 text-[hsl(var(--foreground))]"
+              : "border-[hsl(var(--border))] text-[hsl(var(--muted))] hover:border-[hsl(var(--foreground))]",
+          )}
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <input
             type="file"
             name="file"
@@ -64,6 +138,10 @@ export function ExcelUpload() {
               </span>
               <span>{rowCount} rader identifierade</span>
             </>
+          ) : isDragging ? (
+            <span className="font-semibold text-[hsl(var(--foreground))]">
+              Släpp filen för att ladda upp
+            </span>
           ) : (
             <>
               <span className="font-semibold text-[hsl(var(--foreground))]">
@@ -73,6 +151,7 @@ export function ExcelUpload() {
             </>
           )}
         </label>
+        {dragError && <p className="text-sm text-red-600">{dragError}</p>}
         <input type="hidden" name="filename" value={fileName} />
         <input type="hidden" name="rowCount" value={rowCount} />
         <input type="hidden" name="columns" value={JSON.stringify(columns)} />

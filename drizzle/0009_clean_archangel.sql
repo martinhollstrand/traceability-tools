@@ -1,0 +1,1 @@
+ALTER TABLE "tools" ADD COLUMN "secondary_category" text;

@@ -8,7 +8,13 @@ import { surveyQuestionsTable } from "@/server/db/schema";
 import { requireAdminSession } from "@/server/auth/session";
 
 export type QuestionType = "metadata" | "survey";
-export type MappedField = "name" | "vendor" | "website" | "category" | null;
+export type MappedField =
+  | "name"
+  | "vendor"
+  | "website"
+  | "category"
+  | "secondary_category"
+  | null;
 
 export type SurveyQuestion = {
   id: string;

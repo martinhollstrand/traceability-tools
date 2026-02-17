@@ -20,4 +20,5 @@ export const mappedFieldEnum = pgEnum("mapped_field", [
   "vendor",
   "website",
   "category",
+  "secondary_category",
 ]);

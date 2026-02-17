@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useOptimistic, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,10 +35,21 @@ function SubmitButton() {
 export function LandingPageClient({ initialSettings, tools }: LandingPageClientProps) {
   const router = useRouter();
   const [state, formAction] = useActionState(updateLandingSettingsAction, initialState);
+  const [optimisticTools, setOptimisticTool] = useOptimistic(
+    tools,
+    (
+      currentTools: Tool[],
+      { toolId, isFeatured }: { toolId: string; isFeatured: boolean },
+    ) => currentTools.map((t) => (t.id === toolId ? { ...t, isFeatured } : t)),
+  );
+  const [, startTransition] = useTransition();
 
   const handleToggleFeatured = async (toolId: string, current: boolean) => {
-    await setToolFeaturedAction(toolId, !current);
-    router.refresh();
+    startTransition(async () => {
+      setOptimisticTool({ toolId, isFeatured: !current });
+      await setToolFeaturedAction(toolId, !current);
+      router.refresh();
+    });
   };
 
   return (
@@ -187,7 +198,7 @@ export function LandingPageClient({ initialSettings, tools }: LandingPageClientP
                 </tr>
               </thead>
               <tbody>
-                {tools.map((tool) => (
+                {optimisticTools.map((tool) => (
                   <tr
                     key={tool.id}
                     className="border-b border-[hsl(var(--border))] last:border-0"
@@ -221,7 +232,7 @@ export function LandingPageClient({ initialSettings, tools }: LandingPageClientP
               </tbody>
             </table>
           </div>
-          {tools.length === 0 && (
+          {optimisticTools.length === 0 && (
             <Text className="text-muted-foreground py-4">
               No published tools. Import data first.
             </Text>

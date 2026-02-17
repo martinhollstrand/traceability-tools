@@ -1,14 +1,28 @@
 "use client";
 
-import { Fragment, useState, type ReactNode, useRef, useEffect } from "react";
+import {
+  Fragment,
+  useState,
+  type ReactNode,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThinkingLoader } from "@/components/ui/thinking-loader";
+import { AutoLinkedText } from "@/components/ui/auto-linked-text";
 import type { Tool } from "@/lib/validators/tool";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp, Sparkles, ChevronRight } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  ChevronRight,
+  ChevronLeft,
+} from "lucide-react";
 import type { SurveyQuestion } from "@/server/actions/survey-questions";
 
 type ComparisonGridProps = {
@@ -45,7 +59,10 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, scrollLeft: 0 });
 
   useEffect(() => {
     const checkScroll = () => {
@@ -54,6 +71,7 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
         setShowRightArrow(
           scrollWidth > clientWidth && scrollLeft + clientWidth < scrollWidth - 10,
         );
+        setShowLeftArrow(scrollLeft > 10);
       }
     };
 
@@ -61,7 +79,6 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
     if (container) {
       container.addEventListener("scroll", checkScroll);
       window.addEventListener("resize", checkScroll);
-      // Small timeout to allow layout to settle
       setTimeout(checkScroll, 100);
     }
 
@@ -70,6 +87,32 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
       window.removeEventListener("resize", checkScroll);
     };
   }, [tools.length, isExpanded]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.pageX, scrollLeft: container.scrollLeft };
+    container.style.cursor = "grabbing";
+    container.style.userSelect = "none";
+  }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging.current) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const dx = e.pageX - dragStart.current.x;
+    container.scrollLeft = dragStart.current.scrollLeft - dx;
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false;
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.style.cursor = "grab";
+      container.style.userSelect = "";
+    }
+  }, []);
 
   const handleGenerateSummary = async () => {
     if (tools.length < 2 || isLoadingSummary) return;
@@ -187,11 +230,20 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
     },
     {
       label: "Summary",
-      render: (tool) => (
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          {tool.summary || "—"}
-        </p>
-      ),
+      subtle: true,
+      render: (tool) =>
+        tool.summary ? (
+          <div>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {tool.summary}
+            </p>
+            <p className="text-muted-foreground/50 mt-1 text-[10px] italic">
+              AI-generated from vendor data
+            </p>
+          </div>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        ),
     },
     ...filteredComparisonKeys.map((key) => {
       const code = extractQuestionCode(key);
@@ -216,15 +268,15 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
 
           const stringVal = typeof val === "object" ? JSON.stringify(val) : String(val);
 
-          // Check if this is a multiple choice question
+          // Render multiple choice answers as bullet lists (even single items)
           if (question?.isMultipleChoice) {
             const items = parseMultipleChoiceValue(stringVal);
-            if (items.length > 1) {
+            if (items.length >= 1) {
               return (
                 <ul className="list-disc space-y-0.5 pl-4 text-sm">
                   {items.map((item, index) => (
                     <li key={index} className="text-sm">
-                      {item}
+                      <AutoLinkedText text={item} />
                     </li>
                   ))}
                 </ul>
@@ -232,7 +284,7 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
             }
           }
 
-          return <span className="text-sm">{stringVal}</span>;
+          return <AutoLinkedText text={stringVal} className="text-sm" />;
         },
       };
     }),
@@ -303,7 +355,18 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
 
       <div className="hidden md:block">
         <div className="relative">
-          <div ref={scrollContainerRef} className="scrollbar-hide overflow-x-auto pb-6">
+          <div
+            ref={scrollContainerRef}
+            className="cursor-grab overflow-x-auto pb-6"
+            style={{
+              scrollbarWidth: "thin",
+              scrollbarColor: "hsl(var(--border)) transparent",
+            }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+          >
             <div
               className="border-border/50 inline-block overflow-hidden rounded-[32px] border bg-[hsl(var(--surface))]/70 shadow-[0_26px_90px_-45px_hsl(var(--primary)/0.55)]"
               style={{ minWidth: `${gridMinWidth}px` }}
@@ -382,6 +445,13 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
               )}
             </div>
           </div>
+          {showLeftArrow && (
+            <div className="pointer-events-none absolute top-0 bottom-6 left-0 z-20 flex w-24 items-center justify-start bg-gradient-to-r from-[hsl(var(--background))] to-transparent pl-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--surface))] shadow-lg ring-1 ring-white/10">
+                <ChevronLeft className="text-foreground h-6 w-6" />
+              </div>
+            </div>
+          )}
           {showRightArrow && (
             <div className="pointer-events-none absolute top-0 right-0 bottom-6 z-20 flex w-24 items-center justify-end bg-gradient-to-l from-[hsl(var(--background))] to-transparent pr-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[hsl(var(--surface))] shadow-lg ring-1 ring-white/10">
@@ -437,7 +507,7 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
                           {question.supportiveText}
                         </p>
                       )}
-                      {isMultiChoice && items.length > 1 ? (
+                      {isMultiChoice && items.length >= 1 ? (
                         <ul className="list-disc space-y-0.5 pl-4 text-sm">
                           {items.map((item, index) => (
                             <li key={index}>{item}</li>
@@ -458,6 +528,41 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
   );
 }
 
+/**
+ * Parse inline markdown formatting (**bold**, *italic*) into React nodes.
+ */
+function formatInline(text: string, keyPrefix: string): ReactNode {
+  const parts: ReactNode[] = [];
+  // Match **bold** and *italic* (non-greedy)
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    if (match[2]) {
+      // **bold**
+      parts.push(<strong key={`${keyPrefix}-b-${match.index}`}>{match[2]}</strong>);
+    } else if (match[3]) {
+      // *italic*
+      parts.push(<em key={`${keyPrefix}-i-${match.index}`}>{match[3]}</em>);
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length === 1 && typeof parts[0] === "string" ? parts[0] : <>{parts}</>;
+}
+
 function SummaryContent({ summary }: { summary: string }) {
   const lines = summary.split("\n").map((line) => line.trim());
   const content: ReactNode[] = [];
@@ -468,7 +573,7 @@ function SummaryContent({ summary }: { summary: string }) {
     content.push(
       <ul key={`list-${content.length}`} className="list-disc space-y-1 pl-5">
         {currentList.map((item, index) => (
-          <li key={index}>{item}</li>
+          <li key={index}>{formatInline(item, `li-${content.length}-${index}`)}</li>
         ))}
       </ul>,
     );
@@ -491,7 +596,7 @@ function SummaryContent({ summary }: { summary: string }) {
           key={`h3-${content.length}`}
           className="text-foreground text-base font-semibold"
         >
-          {line.slice(4)}
+          {formatInline(line.slice(4), `h3-${content.length}`)}
         </h3>,
       );
       return;
@@ -502,7 +607,7 @@ function SummaryContent({ summary }: { summary: string }) {
           key={`h2-${content.length}`}
           className="text-foreground text-lg font-semibold"
         >
-          {line.slice(3)}
+          {formatInline(line.slice(3), `h2-${content.length}`)}
         </h2>,
       );
       return;
@@ -513,14 +618,14 @@ function SummaryContent({ summary }: { summary: string }) {
           key={`h1-${content.length}`}
           className="text-foreground text-xl font-semibold"
         >
-          {line.slice(2)}
+          {formatInline(line.slice(2), `h1-${content.length}`)}
         </h1>,
       );
       return;
     }
     content.push(
       <p key={`p-${content.length}`} className="text-muted-foreground leading-relaxed">
-        {line}
+        {formatInline(line, `p-${content.length}`)}
       </p>,
     );
   });

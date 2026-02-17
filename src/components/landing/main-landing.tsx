@@ -44,6 +44,21 @@ export async function MainLanding() {
         </div>
       </section>
 
+      <section className="grid gap-6 md:grid-cols-3">
+        {settings.insightBullets.map((item) => (
+          <div
+            key={item.title}
+            className="border-border/40 relative overflow-hidden rounded-3xl border bg-[hsl(var(--surface))]/82 p-6 shadow-[0_22px_60px_-38px_hsl(var(--primary)/0.45)]"
+          >
+            <span className="bg-primary/12 mb-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-lg">
+              {item.icon}
+            </span>
+            <h3 className="text-lg font-semibold">{item.title}</h3>
+            <p className="text-muted-foreground mt-2 text-sm">{item.copy}</p>
+          </div>
+        ))}
+      </section>
+
       <section className="space-y-10">
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
@@ -66,21 +81,6 @@ export async function MainLanding() {
             ))}
           </div>
         </Suspense>
-      </section>
-
-      <section className="grid gap-6 md:grid-cols-3">
-        {settings.insightBullets.map((item) => (
-          <div
-            key={item.title}
-            className="border-border/40 relative overflow-hidden rounded-3xl border bg-[hsl(var(--surface))]/82 p-6 shadow-[0_22px_60px_-38px_hsl(var(--primary)/0.45)]"
-          >
-            <span className="bg-primary/12 mb-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-lg">
-              {item.icon}
-            </span>
-            <h3 className="text-lg font-semibold">{item.title}</h3>
-            <p className="text-muted-foreground mt-2 text-sm">{item.copy}</p>
-          </div>
-        ))}
       </section>
     </div>
   );

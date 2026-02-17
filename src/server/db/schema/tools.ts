@@ -23,6 +23,7 @@ export const toolsTable = pgTable(
     vendor: text("vendor"),
     summary: text("summary"),
     category: text("category"),
+    secondaryCategory: text("secondary_category"),
     website: text("website"),
     status: toolStatusEnum("status").notNull().default("draft"),
     highlights: jsonb("highlights")

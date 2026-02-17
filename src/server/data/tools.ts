@@ -26,14 +26,17 @@ function getValueForQuestionCode(
   return null;
 }
 
+type SortOption = "name" | "category" | "updated";
+
 type ToolFilters = {
   query?: string;
   categories?: string[];
   featured?: boolean;
+  sortBy?: SortOption;
 };
 
 export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]> => {
-  const { query, categories, featured } = filters;
+  const { query, categories, featured, sortBy = "name" } = filters;
   const conditions = [eq(toolsTable.status, "published")];
 
   if (featured) {
@@ -74,11 +77,23 @@ export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]
     );
   }
 
+  const orderClause = (() => {
+    switch (sortBy) {
+      case "name":
+        return asc(toolsTable.name);
+      case "category":
+        return asc(toolsTable.category);
+      case "updated":
+      default:
+        return desc(toolsTable.updatedAt);
+    }
+  })();
+
   const rows = await db
     .select()
     .from(toolsTable)
     .where(and(...conditions))
-    .orderBy(desc(toolsTable.updatedAt));
+    .orderBy(orderClause);
 
   return rows.map(mapToolRow);
 });
@@ -145,6 +160,7 @@ function mapToolRow(row: typeof toolsTable.$inferSelect): Tool {
     slug: row.slug,
     vendor: row.vendor ?? "",
     category: row.category ?? "",
+    secondaryCategory: row.secondaryCategory ?? undefined,
     summary: row.summary ?? "",
     website: row.website ?? "",
     logoUrl: undefined, // logoUrl not in new schema

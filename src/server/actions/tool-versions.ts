@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, notInArray } from "drizzle-orm";
+import { and, eq, notInArray, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { createHash } from "crypto";
 import { read, utils } from "xlsx";
@@ -15,15 +15,34 @@ const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
 
 // Type definitions for question type and mapped field
 type QuestionType = "metadata" | "survey";
-type MappedField = "name" | "vendor" | "website" | "category" | null;
+type MappedField =
+  | "name"
+  | "vendor"
+  | "website"
+  | "category"
+  | "secondary_category"
+  | null;
 
-// Patterns to auto-detect metadata questions based on question text
+// Patterns to auto-detect metadata questions based on question text.
+// Order matters: more specific patterns are checked first.
 const METADATA_PATTERNS: Array<{ pattern: RegExp; field: MappedField }> = [
   { pattern: /\b(tool\s*name|name\s*of.*tool|product\s*name)\b/i, field: "name" },
   { pattern: /\b(vendor|company|provider|manufacturer|supplier)\b/i, field: "vendor" },
   { pattern: /\b(website|web\s*address|url|homepage|web\s*page)\b/i, field: "website" },
-  { pattern: /\b(category|main\s*focus|type|classification)\b/i, field: "category" },
+  // Category patterns use the smarter detectCategoryField below
 ];
+
+/**
+ * Detect if a question text indicates a secondary category field.
+ * Matches headers like "2nd category", "secondary category", "Tool category (secondary focus)", etc.
+ */
+function isSecondaryCategory(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    /\b(2nd|secondary|sub)\s*categor/i.test(lower) ||
+    (/\bcategor/i.test(lower) && /\b(secondary|2nd)\b/i.test(lower))
+  );
+}
 
 /**
  * Detect if a question text indicates a metadata field.
@@ -35,6 +54,15 @@ function detectMetadataField(questionText: string): MappedField {
       return field;
     }
   }
+
+  // Handle category detection separately so we can distinguish primary vs secondary
+  if (isSecondaryCategory(questionText)) {
+    return "secondary_category";
+  }
+  if (/\b(category|main\s*focus|type|classification)\b/i.test(questionText)) {
+    return "category";
+  }
+
   return null;
 }
 
@@ -318,6 +346,7 @@ export async function uploadExcelAction(
         vendor: "",
         website: "",
         category: "",
+        secondary_category: "",
       };
 
       // Process each column to extract metadata field values
@@ -347,6 +376,14 @@ export async function uploadExcelAction(
       const category =
         toolFieldsFromQuestions.category ||
         getValue(row, ["Main focus/category", "Category", "category", "Type"]);
+      const secondaryCategory =
+        toolFieldsFromQuestions.secondary_category ||
+        getValue(row, [
+          "2nd category",
+          "Secondary category",
+          "Subcategory",
+          "Sub category",
+        ]);
 
       const slug = slugify(name);
 
@@ -356,26 +393,18 @@ export async function uploadExcelAction(
         existingTool = toolMapBySlug.get(slug);
       }
 
-      let summary = getValue(row, ["Summary", "summary", "Description"]);
+      const excelSummary = getValue(row, ["Summary", "summary", "Description"]);
+      let summary = excelSummary;
 
       // AI Summary Logic:
-      // 1. If explicit summary in Excel -> Use it (already set above)
-      // 2. If NO Excel summary:
-      //    a. If existing tool has summary AND NOT regenerateAi -> Use existing
-      //    b. Else (new tool OR existing has no summary OR regenerateAi) -> Generate AI
-      if (!summary && process.env.AI_GATEWAY_API_KEY) {
-        const shouldGenerate =
-          !existingTool?.summary || // New tool or empty existing summary
-          parsed.data.regenerateAi; // Force regenerate flag
-
-        if (shouldGenerate) {
-          const aiSummary = await generateToolSummary(name, row);
-          if (aiSummary) {
-            summary = aiSummary;
-          }
-        } else if (existingTool?.summary) {
-          // Preserve existing summary if not regenerating
-          summary = existingTool.summary;
+      // 1. If explicit summary in Excel -> use it (already set above).
+      // 2. If NO Excel summary AND regenerateAi -> generate new AI summary.
+      // 3. If NO Excel summary AND NOT regenerateAi -> leave summary empty
+      //    (don't carry over stale AI-generated text from a previous import).
+      if (!summary && parsed.data.regenerateAi && process.env.AI_GATEWAY_API_KEY) {
+        const aiSummary = await generateToolSummary(name, row);
+        if (aiSummary) {
+          summary = aiSummary;
         }
       }
 
@@ -439,6 +468,7 @@ export async function uploadExcelAction(
         vendor,
         summary,
         category,
+        secondaryCategory: secondaryCategory || null,
         website,
         status: "published" as const,
         rawData: row,
@@ -515,6 +545,22 @@ export async function uploadExcelAction(
         .where(eq(toolsTable.status, "published"));
     }
 
+    // Remove orphaned survey questions whose codes are no longer in this import
+    const importedCodes = questionHeaders.map((q) => q.parsed.code);
+    if (importedCodes.length > 0) {
+      const allQuestions = await db
+        .select({ id: surveyQuestionsTable.id, code: surveyQuestionsTable.code })
+        .from(surveyQuestionsTable);
+      const orphanIds = allQuestions
+        .filter((q) => !importedCodes.includes(q.code))
+        .map((q) => q.id);
+      if (orphanIds.length > 0) {
+        await db
+          .delete(surveyQuestionsTable)
+          .where(inArray(surveyQuestionsTable.id, orphanIds));
+      }
+    }
+
     // Update version status
     await db
       .update(toolVersionsTable)
@@ -534,6 +580,10 @@ export async function uploadExcelAction(
     revalidatePath("/admin");
     revalidatePath("/admin/data");
     revalidatePath("/admin/versions");
+    revalidatePath("/tools");
+    revalidatePath("/compare");
+    revalidatePath("/main");
+    revalidatePath("/admin/questions");
 
     return { success: true };
   } catch (error) {

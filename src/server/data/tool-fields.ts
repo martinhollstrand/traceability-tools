@@ -10,6 +10,7 @@ type ToolWithRawData = {
   vendor: string | null;
   website: string | null;
   category: string | null;
+  secondaryCategory?: string | null;
   rawData: Record<string, unknown>;
 };
 
@@ -18,6 +19,7 @@ export type DynamicToolFields = {
   vendor: string | null;
   website: string | null;
   category: string | null;
+  secondaryCategory: string | null;
 };
 
 /**
@@ -39,6 +41,7 @@ export function getToolFieldsFromMappings(
     vendor: tool.vendor,
     website: tool.website,
     category: tool.category,
+    secondaryCategory: tool.secondaryCategory ?? null,
   };
 
   // Get metadata questions with mappings
@@ -59,13 +62,25 @@ export function getToolFieldsFromMappings(
     }
   }
 
+  // Map from database mapped field names to DynamicToolFields keys
+  const fieldMapping: Record<string, keyof DynamicToolFields> = {
+    name: "name",
+    vendor: "vendor",
+    website: "website",
+    category: "category",
+    secondary_category: "secondaryCategory",
+  };
+
   // Apply metadata mappings from rawData
   for (const question of metadataQuestions) {
     const columnName = codeToColumn.get(question.code);
     if (columnName && question.mappedField) {
       const value = tool.rawData[columnName];
       if (value !== undefined && value !== null && value !== "") {
-        fields[question.mappedField as keyof DynamicToolFields] = String(value);
+        const fieldKey = fieldMapping[question.mappedField];
+        if (fieldKey) {
+          fields[fieldKey] = String(value);
+        }
       }
     }
   }
@@ -89,5 +104,13 @@ export function getToolFieldValue(
   if (!field) return null;
 
   const fields = getToolFieldsFromMappings(tool, questions);
-  return fields[field];
+  const mappedFieldToKey: Record<string, keyof DynamicToolFields> = {
+    name: "name",
+    vendor: "vendor",
+    website: "website",
+    category: "category",
+    secondary_category: "secondaryCategory",
+  };
+  const key = mappedFieldToKey[field];
+  return key ? fields[key] : null;
 }

@@ -2,8 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import * as Popover from "@radix-ui/react-popover";
-import { ChevronDown, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,7 +22,6 @@ export function FilterBar({
   const searchParams = useSearchParams();
   const [query, setQuery] = React.useState(defaultQuery);
   const [categories, setCategories] = React.useState<string[]>(defaultCategories);
-  const [categoryPickerOpen, setCategoryPickerOpen] = React.useState(false);
   const [categoryFilter, setCategoryFilter] = React.useState("");
 
   // Sync state with URL params when they change
@@ -35,13 +33,6 @@ export function FilterBar({
     setCategories(urlCategories);
   }, [searchParams]);
 
-  React.useEffect(() => {
-    // Clear the internal search when the picker closes.
-    if (!categoryPickerOpen) {
-      setCategoryFilter("");
-    }
-  }, [categoryPickerOpen]);
-
   function toggle(list: string[], value: string) {
     return list.includes(value)
       ? list.filter((item) => item !== value)
@@ -49,13 +40,17 @@ export function FilterBar({
   }
 
   function updateUrl(queryValue: string, categoriesValue: string[]) {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(searchParams.toString());
+    // Preserve sort param
+    const sort = params.get("sort");
+    const newParams = new URLSearchParams();
     if (queryValue.trim()) {
-      params.set("q", queryValue.trim());
+      newParams.set("q", queryValue.trim());
     }
-    categoriesValue.forEach((category) => params.append("category", category));
+    categoriesValue.forEach((category) => newParams.append("category", category));
+    if (sort) newParams.set("sort", sort);
 
-    const queryString = params.toString();
+    const queryString = newParams.toString();
     router.push(`/tools${queryString ? `?${queryString}` : ""}`);
   }
 
@@ -87,7 +82,7 @@ export function FilterBar({
           Search
         </label>
         <Input
-          placeholder="Search tool name, vendor, category, summary, or website…"
+          placeholder="Search tools…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
@@ -106,9 +101,12 @@ export function FilterBar({
               : "border-border/70 hover:border-primary/30 focus-visible:border-primary/60 focus-visible:ring-primary/30 bg-[hsl(var(--background))] shadow-sm hover:shadow-md focus-visible:shadow-lg",
           )}
         />
+        <p className="text-muted-foreground/60 mt-2 text-[11px]">
+          Searches tool name, vendor, category, summary, and website
+        </p>
         {query.trim() && (
-          <p className="text-muted-foreground/70 mt-2.5 text-xs">
-            Press Enter to search or click &quot;Apply filters&quot;
+          <p className="text-muted-foreground/70 mt-1 text-xs">
+            Press Enter or click &quot;Apply filters&quot;
           </p>
         )}
       </div>
@@ -139,7 +137,7 @@ export function FilterBar({
                     setCategories(next);
                     updateUrl(query, next);
                   }}
-                  className="text-muted-foreground hover:text-foreground rounded-full p-0.5"
+                  className="text-muted-foreground hover:text-foreground cursor-pointer rounded-full p-0.5"
                   aria-label={`Remove category ${category}`}
                 >
                   <X className="h-3.5 w-3.5" />
@@ -149,92 +147,64 @@ export function FilterBar({
           </div>
         )}
 
-        <Popover.Root open={categoryPickerOpen} onOpenChange={setCategoryPickerOpen}>
-          <Popover.Trigger asChild>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="w-full justify-between"
-            >
-              Choose categories
-              <ChevronDown className="h-4 w-4 opacity-70" />
-            </Button>
-          </Popover.Trigger>
-          <Popover.Portal>
-            <Popover.Content
-              align="start"
-              side="bottom"
-              sideOffset={10}
-              className="border-border/80 text-foreground z-50 max-h-[420px] w-[320px] overflow-hidden rounded-3xl border bg-[hsl(var(--surface))] p-4 shadow-[0_35px_90px_-55px_hsl(var(--primary)/0.55)]"
-            >
-              <div className="flex max-h-full flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <Search className="text-muted-foreground h-4 w-4" />
-                  <Input
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    placeholder="Filter categories…"
-                    className="h-10"
-                  />
-                </div>
+        {availableCategories.length > 8 && (
+          <div className="mb-2 flex items-center gap-2">
+            <Search className="text-muted-foreground h-4 w-4 shrink-0" />
+            <Input
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              placeholder="Filter categories…"
+              className="h-9 text-sm"
+            />
+          </div>
+        )}
 
-                <div className="border-border/60 min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border bg-[hsl(var(--background))] p-2">
-                  {filteredCategories.length === 0 ? (
-                    <p className="text-muted-foreground px-2 py-6 text-center text-xs">
-                      No categories match “{categoryFilter.trim()}”.
-                    </p>
-                  ) : (
-                    filteredCategories.map((category) => {
-                      const active = categories.includes(category);
-                      return (
-                        <label
-                          key={category}
-                          className={cn(
-                            "flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2 text-sm hover:bg-[hsl(var(--surface-strong))]/70",
-                            active && "bg-primary/5",
-                          )}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={active}
-                            onChange={() => {
-                              const next = toggle(categories, category);
-                              setCategories(next);
-                              updateUrl(query, next);
-                            }}
-                            className="h-4 w-4"
-                          />
-                          <span className="flex-1">{category}</span>
-                        </label>
-                      );
-                    })
+        <div className="border-border/60 max-h-[320px] space-y-0.5 overflow-y-auto overscroll-contain rounded-2xl border bg-[hsl(var(--background))] p-2">
+          {filteredCategories.length === 0 ? (
+            <p className="text-muted-foreground px-2 py-4 text-center text-xs">
+              No categories match &quot;{categoryFilter.trim()}&quot;.
+            </p>
+          ) : (
+            filteredCategories.map((category) => {
+              const active = categories.includes(category);
+              return (
+                <label
+                  key={category}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors hover:bg-[hsl(var(--surface-strong))]/70",
+                    active && "bg-primary/5",
                   )}
-                </div>
-
-                <div className="flex items-center justify-between gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setCategories([]);
-                      updateUrl(query, []);
+                >
+                  <input
+                    type="checkbox"
+                    checked={active}
+                    onChange={() => {
+                      const next = toggle(categories, category);
+                      setCategories(next);
+                      updateUrl(query, next);
                     }}
-                    disabled={categories.length === 0}
-                  >
-                    Clear
-                  </Button>
-                  <Popover.Close asChild>
-                    <Button type="button" variant="secondary" size="sm">
-                      Done
-                    </Button>
-                  </Popover.Close>
-                </div>
-              </div>
-            </Popover.Content>
-          </Popover.Portal>
-        </Popover.Root>
+                    className="h-4 w-4 cursor-pointer"
+                  />
+                  <span className="flex-1">{category}</span>
+                </label>
+              );
+            })
+          )}
+        </div>
+        {categories.length > 0 && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mt-2"
+            onClick={() => {
+              setCategories([]);
+              updateUrl(query, []);
+            }}
+          >
+            Clear categories
+          </Button>
+        )}
       </div>
       <div className="flex items-center justify-end gap-2">
         <Button type="button" variant="ghost" onClick={handleReset}>
