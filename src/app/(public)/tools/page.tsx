@@ -2,8 +2,7 @@ import { listTools, getAvailableCategories } from "@/server/data/tools";
 import { getSurveyQuestions } from "@/server/actions/survey-questions";
 import { getToolFieldsFromMappings } from "@/server/data/tool-fields";
 import { FilterBar } from "@/components/tools/filter-bar";
-import { ToolTable } from "@/components/tools/tool-table";
-import { SortDropdown } from "@/components/tools/sort-dropdown";
+import { ToolsDirectory } from "@/components/tools/tools-directory";
 import { COMPARE_LIMIT } from "@/lib/constants";
 
 const VALID_SORTS = ["name", "category", "updated"] as const;
@@ -67,22 +66,12 @@ export default async function ToolsPage({
         defaultCategories={categories}
         availableCategories={availableCategories}
       />
-      <div className="space-y-4">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="text-muted-foreground text-sm tracking-widest uppercase">
-              Directory
-            </p>
-            <h1 className="text-3xl font-semibold">Traceability & ESG tools</h1>
-            <p className="text-muted-foreground text-sm">
-              {tools.length} tools match your filters. Select up to {COMPARE_LIMIT} to
-              compare in detail.
-            </p>
-          </div>
-          <SortDropdown currentSort={sortBy} />
-        </div>
-        <ToolTable tools={tools} />
-      </div>
+      <ToolsDirectory
+        tools={tools}
+        currentSort={sortBy}
+        toolCount={tools.length}
+        compareLimit={COMPARE_LIMIT}
+      />
     </div>
   );
 }
