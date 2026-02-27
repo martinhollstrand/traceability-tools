@@ -59,6 +59,16 @@ export default async function ToolsPage({
     };
   });
 
+  const sortedTools =
+    sortBy === "category"
+      ? [...tools].sort(
+          (a, b) =>
+            (a.category ?? "").localeCompare(b.category ?? "", undefined, {
+              sensitivity: "base",
+            }) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+        )
+      : tools;
+
   return (
     <div className="grid gap-8 lg:grid-cols-[320px,1fr]">
       <FilterBar
@@ -67,9 +77,9 @@ export default async function ToolsPage({
         availableCategories={availableCategories}
       />
       <ToolsDirectory
-        tools={tools}
+        tools={sortedTools}
         currentSort={sortBy}
-        toolCount={tools.length}
+        toolCount={sortedTools.length}
         compareLimit={COMPARE_LIMIT}
       />
     </div>

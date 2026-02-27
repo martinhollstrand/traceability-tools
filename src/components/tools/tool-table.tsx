@@ -72,7 +72,11 @@ export function ToolTable({ tools, showSummaries = true }: ToolTableProps) {
                 </div>
               </TableCell>
               <TableCell className="align-top">
-                <Badge variant="secondary">{tool.category}</Badge>
+                {tool.category ? (
+                  <Badge variant="secondary">{tool.category}</Badge>
+                ) : (
+                  <span className="text-muted-foreground text-xs">—</span>
+                )}
               </TableCell>
               <TableCell className="align-top">
                 {tool.secondaryCategory ? (

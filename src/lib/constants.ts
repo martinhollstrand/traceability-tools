@@ -6,6 +6,7 @@ export const DEFAULT_META = {
 };
 
 export const COMPARE_LIMIT = 12;
+export const AI_SUMMARY_SOURCE_NOTE = "AI-generated from all supplier submitted data.";
 
 export const FEATURE_TAGS = [
   "Supplier Network",

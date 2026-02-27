@@ -37,7 +37,7 @@ export function CompareContent({ tools, questions }: CompareContentProps) {
           <p className="text-muted-foreground text-sm tracking-widest uppercase">
             Workspace
           </p>
-          <h1 className="text-3xl font-semibold">Comparison studio</h1>
+          <h1 className="text-3xl font-semibold">Comparison</h1>
           <p className="text-muted-foreground text-sm">
             Select up to three tools to unlock AI insights, metadata diffs, and exportable
             notes.

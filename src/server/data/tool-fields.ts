@@ -4,6 +4,39 @@ import type { SurveyQuestion, MappedField } from "@/server/actions/survey-questi
 
 // Regex to extract question code from column header
 const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
+const PRIMARY_CATEGORY_QUESTION_CODE = "004";
+
+function normalizeRawValue(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function getRawDataValueByQuestionCode(
+  rawData: Record<string, unknown>,
+  code: string,
+): string | null {
+  for (const [key, value] of Object.entries(rawData)) {
+    const match = key.match(QUESTION_CODE_REGEX);
+    if (match?.[1] !== code) continue;
+    const normalized = normalizeRawValue(value);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
+function getRawDataValueByLabel(
+  rawData: Record<string, unknown>,
+  predicate: (label: string) => boolean,
+): string | null {
+  for (const [key, value] of Object.entries(rawData)) {
+    const normalized = normalizeRawValue(value);
+    if (!normalized) continue;
+    const label = key.replace(QUESTION_CODE_REGEX, "").trim();
+    if (predicate(label)) return normalized;
+  }
+  return null;
+}
 
 type ToolWithRawData = {
   name: string;
@@ -83,6 +116,23 @@ export function getToolFieldsFromMappings(
         }
       }
     }
+  }
+
+  // Fallback to raw import values when category mappings are missing or empty.
+  if (!fields.category) {
+    fields.category =
+      getRawDataValueByQuestionCode(tool.rawData, PRIMARY_CATEGORY_QUESTION_CODE) ??
+      getRawDataValueByLabel(
+        tool.rawData,
+        (label) =>
+          /\bcategor/i.test(label) && !/\b(2nd|secondary|sub)\s*categor/i.test(label),
+      );
+  }
+
+  if (!fields.secondaryCategory) {
+    fields.secondaryCategory = getRawDataValueByLabel(tool.rawData, (label) =>
+      /\b(2nd|secondary|sub)\s*categor/i.test(label),
+    );
   }
 
   return fields;

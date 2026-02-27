@@ -5,7 +5,6 @@ import { CompareButton } from "@/components/layout/compare-button";
 
 const navItems = [
   { href: "/tools", label: "Tools" },
-  { href: "/compare", label: "Compare" },
   { href: "/report", label: "Reports" },
   // { href: "/admin", label: "Admin" },
 ];

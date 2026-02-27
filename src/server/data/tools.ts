@@ -26,6 +26,13 @@ function getValueForQuestionCode(
   return null;
 }
 
+function splitCategoryValues(value: string): string[] {
+  return value
+    .split(/[;,]/)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
 type SortOption = "name" | "category" | "updated";
 
 type ToolFilters = {
@@ -63,18 +70,25 @@ export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]
   }
 
   if (categories?.length) {
-    // Filter by question 004 value (stored in raw_data; 004 is often metadata so not in comparison_data)
-    const categoryPattern = `\\[${QUESTION_CODE_CATEGORY}\\]\\s*$`;
-    conditions.push(
-      sql`EXISTS (
-        SELECT 1 FROM jsonb_each_text(${toolsTable.rawData}) AS _t(_k, _v)
-        WHERE _k ~ ${categoryPattern}
-        AND trim(_v) IN (${sql.join(
-          categories.map((c) => sql`${c}`),
-          sql`, `,
-        )})
-      )`,
-    );
+    // Filter by question 004 value (stored in raw_data; 004 is often metadata so not in comparison_data).
+    // When multiple categories are selected, apply AND semantics to narrow results.
+    const normalizedCategories = categories.map((c) => c.trim()).filter(Boolean);
+    if (normalizedCategories.length > 0) {
+      const categoryPattern = `\\[${QUESTION_CODE_CATEGORY}\\]\\s*$`;
+      const categoryClauses = normalizedCategories.map(
+        (category) => sql`EXISTS (
+          SELECT 1
+          FROM jsonb_each_text(${toolsTable.rawData}) AS _t(_k, _v)
+          WHERE _k ~ ${categoryPattern}
+            AND EXISTS (
+              SELECT 1
+              FROM regexp_split_to_table(_v, '\\s*[;,]\\s*') AS _split(item)
+              WHERE lower(trim(item)) = lower(${category})
+            )
+        )`,
+      );
+      conditions.push(sql`${sql.join(categoryClauses, sql` AND `)}`);
+    }
   }
 
   const orderClause = (() => {
@@ -138,7 +152,11 @@ export const getAvailableCategories = cache(async (): Promise<string[]> => {
       (row.rawData as Record<string, unknown>) ?? null,
       QUESTION_CODE_CATEGORY,
     );
-    if (value) categorySet.add(value);
+    if (value) {
+      for (const category of splitCategoryValues(value)) {
+        categorySet.add(category);
+      }
+    }
   }
 
   return Array.from(categorySet).sort();

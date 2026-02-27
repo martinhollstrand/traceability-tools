@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThinkingLoader } from "@/components/ui/thinking-loader";
 import { AutoLinkedText } from "@/components/ui/auto-linked-text";
 import type { Tool } from "@/lib/validators/tool";
+import { AI_SUMMARY_SOURCE_NOTE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
   ChevronDown,
@@ -215,18 +216,9 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
     render: (tool: Tool) => ReactNode;
   }> = [
     {
-      label: "Vendor",
+      label: "Description",
       render: (tool) =>
-        tool.vendor ? (
-          <Link
-            href={`/tools/${tool.slug}`}
-            className="text-foreground hover:text-primary underline-offset-2 hover:underline"
-          >
-            {tool.vendor}
-          </Link>
-        ) : (
-          "—"
-        ),
+        tool.vendor ? <span className="text-sm">{tool.vendor}</span> : "—",
     },
     {
       label: "Summary",
@@ -238,7 +230,7 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
               {tool.summary}
             </p>
             <p className="text-muted-foreground/50 mt-1 text-[10px] italic">
-              AI-generated from vendor data
+              {AI_SUMMARY_SOURCE_NOTE}
             </p>
           </div>
         ) : (
@@ -376,7 +368,7 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
                 style={gridTemplateStyle}
               >
                 <div className="text-muted-foreground border-border/40 text-md sticky left-0 z-10 border-r bg-[hsl(var(--surface-strong))] px-6 py-4 font-semibold uppercase shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]">
-                  Dimension
+                  Tool
                 </div>
                 {tools.map((tool) => (
                   <div key={tool.id} className="flex flex-col gap-1 px-6 py-4">

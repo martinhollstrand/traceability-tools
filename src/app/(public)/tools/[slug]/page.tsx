@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/container";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 import { AutoLinkedText } from "@/components/ui/auto-linked-text";
+import { AI_SUMMARY_SOURCE_NOTE } from "@/lib/constants";
 import { getToolBySlug } from "@/server/data/tools";
 import { getSurveyQuestions } from "@/server/actions/survey-questions";
 import { getToolFieldsFromMappings } from "@/server/data/tool-fields";
@@ -55,19 +56,17 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
   // Create a map of question codes to question data
   const questionsByCode = new Map(questions.map((q) => [q.code, q]));
 
-  // Only show entries for questions marked forComparison (respects admin hide flag)
-  const comparisonEntries = Object.entries(tool.comparisonData ?? {})
-    .filter(([key]) => {
-      const code = extractQuestionCode(key);
-      if (!code) return false;
-      const question = questionsByCode.get(code);
-      return question?.forComparison === true;
-    })
-    .sort(([keyA], [keyB]) => {
-      const codeA = extractQuestionCode(keyA) ?? "";
-      const codeB = extractQuestionCode(keyB) ?? "";
-      return codeA.localeCompare(codeB);
-    });
+  // Show all available survey entries for this tool detail view.
+  const comparisonEntries = Object.entries(tool.comparisonData ?? {}).sort(
+    ([keyA], [keyB]) => {
+      const codeA = extractQuestionCode(keyA);
+      const codeB = extractQuestionCode(keyB);
+      if (codeA && codeB) return codeA.localeCompare(codeB);
+      if (codeA) return -1;
+      if (codeB) return 1;
+      return keyA.localeCompare(keyB);
+    },
+  );
 
   return (
     <div className="py-12">
@@ -83,7 +82,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
             <div>
               <Text variant="lead">{tool.summary}</Text>
               <p className="mt-1 text-xs text-[hsl(var(--muted))]/50 italic">
-                AI-generated from vendor data
+                {AI_SUMMARY_SOURCE_NOTE}
               </p>
             </div>
           )}
@@ -93,7 +92,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
           <div className="border-border/50 overflow-hidden rounded-[32px] border bg-[hsl(var(--surface))]/70 shadow-[0_26px_90px_-45px_hsl(var(--primary)/0.55)]">
             <div className="border-border/40 grid grid-cols-[220px,1fr] items-stretch border-b bg-[hsl(var(--surface-strong))]/70">
               <div className="text-muted-foreground text-md border-border/40 border-r px-6 py-4 font-semibold uppercase">
-                Dimension
+                Tool
               </div>
               <div className="px-6 py-4">
                 <span className="text-foreground text-xl font-semibold">
@@ -105,7 +104,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
               {toolFields.vendor && (
                 <div className="bg-background/55 grid grid-cols-[220px,1fr] items-stretch">
                   <div className="text-muted-foreground border-border/40 flex flex-col gap-1 border-r bg-[hsl(var(--surface))] px-6 py-5">
-                    <span className="text-md font-semibold uppercase">Vendor</span>
+                    <span className="text-md font-semibold uppercase">Description</span>
                   </div>
                   <div className="space-y-2 px-6 py-5">
                     <span className="text-sm">{toolFields.vendor}</span>
