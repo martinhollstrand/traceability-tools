@@ -30,6 +30,10 @@ const METADATA_PATTERNS: Array<{ pattern: RegExp; field: MappedField }> = [
   { pattern: /\b(website|web\s*address|url|homepage|web\s*page)\b/i, field: "website" },
 ];
 
+const AI_SUMMARY_DEFAULT_CONCURRENCY = 4;
+const AI_SUMMARY_MIN_CONCURRENCY = 1;
+const AI_SUMMARY_MAX_CONCURRENCY = 8;
+
 const uploadSchema = z.object({
   filename: z.string().min(1, "Filnamn saknas"),
   rowCount: z.coerce.number().nonnegative(),
@@ -81,6 +85,28 @@ export type ToolImportResult = {
 };
 
 type ImportProgressReporter = (event: ToolImportProgress) => Promise<void> | void;
+
+type QuestionLookup = {
+  questionType: QuestionType;
+  mappedField: MappedField;
+  original: string;
+};
+
+type DerivedRowFields = {
+  name: string;
+  vendor: string;
+  website: string;
+  category: string;
+  secondaryCategory: string;
+  excelSummary: string;
+};
+
+type AiSummaryCandidate = {
+  index: number;
+  rowNumber: number;
+  name: string;
+  row: Record<string, unknown>;
+};
 
 function isSecondaryCategory(text: string): boolean {
   const lower = text.toLowerCase();
@@ -209,6 +235,99 @@ function deriveImportId(row: Record<string, unknown>): string {
   if (key === "|" || key.replaceAll("|", "") === "") return "";
 
   return createHash("sha256").update(key).digest("hex").slice(0, 16);
+}
+
+function getAiSummaryConcurrency(): number {
+  const raw = Number(
+    process.env.IMPORT_AI_SUMMARY_CONCURRENCY ?? AI_SUMMARY_DEFAULT_CONCURRENCY,
+  );
+  if (!Number.isFinite(raw)) return AI_SUMMARY_DEFAULT_CONCURRENCY;
+
+  const normalized = Math.trunc(raw);
+  if (normalized < AI_SUMMARY_MIN_CONCURRENCY) return AI_SUMMARY_MIN_CONCURRENCY;
+  if (normalized > AI_SUMMARY_MAX_CONCURRENCY) return AI_SUMMARY_MAX_CONCURRENCY;
+  return normalized;
+}
+
+async function processWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, itemIndex: number) => Promise<void>,
+) {
+  if (items.length === 0) return;
+
+  const workerCount = Math.min(Math.max(concurrency, 1), items.length);
+  let currentIndex = 0;
+
+  const runners = Array.from({ length: workerCount }, () =>
+    (async () => {
+      while (true) {
+        const itemIndex = currentIndex;
+        currentIndex++;
+        if (itemIndex >= items.length) {
+          return;
+        }
+        await worker(items[itemIndex], itemIndex);
+      }
+    })(),
+  );
+
+  await Promise.all(runners);
+}
+
+function deriveRowFields(
+  row: Record<string, unknown>,
+  columnToQuestionCode: Map<string, string>,
+  codeToQuestion: Map<string, QuestionLookup>,
+): DerivedRowFields {
+  const toolFieldsFromQuestions: Record<string, string> = {
+    name: "",
+    vendor: "",
+    website: "",
+    category: "",
+    secondary_category: "",
+  };
+
+  for (const [columnName, value] of Object.entries(row)) {
+    if (value === "" || value === null || value === undefined) continue;
+
+    const questionCode = columnToQuestionCode.get(columnName);
+    if (questionCode) {
+      const questionInfo = codeToQuestion.get(questionCode);
+      if (questionInfo?.questionType === "metadata" && questionInfo.mappedField) {
+        toolFieldsFromQuestions[questionInfo.mappedField] = String(value);
+      }
+    }
+  }
+
+  const name =
+    toolFieldsFromQuestions.name ||
+    getValue(row, ["Tool name", "Name", "name"]) ||
+    "Untitled Tool";
+  const vendor =
+    toolFieldsFromQuestions.vendor ||
+    getValue(row, ["Company", "Vendor", "vendor", "Provider"]);
+  const website =
+    toolFieldsFromQuestions.website ||
+    getValue(row, ["Web", "Website", "website", "URL"]);
+  const category =
+    toolFieldsFromQuestions.category ||
+    getValueByQuestionCode(row, PRIMARY_CATEGORY_QUESTION_CODE) ||
+    getValue(row, ["Main focus/category", "Category", "category", "Type"]);
+  const secondaryCategory =
+    toolFieldsFromQuestions.secondary_category ||
+    getValueByQuestionCode(row, SECONDARY_CATEGORY_QUESTION_CODE) ||
+    getValue(row, ["2nd category", "Secondary category", "Subcategory", "Sub category"]);
+  const excelSummary = getValue(row, ["Summary", "summary", "Description"]);
+
+  return {
+    name,
+    vendor,
+    website,
+    category,
+    secondaryCategory,
+    excelSummary,
+  };
 }
 
 async function emitProgress(
@@ -353,14 +472,7 @@ export async function runToolVersionImport(
     }>;
 
     const columnToQuestionCode = new Map<string, string>();
-    const codeToQuestion = new Map<
-      string,
-      {
-        questionType: QuestionType;
-        mappedField: MappedField;
-        original: string;
-      }
-    >();
+    const codeToQuestion = new Map<string, QuestionLookup>();
 
     for (const { original, parsed: question } of questionHeaders) {
       columnToQuestionCode.set(original, question.code);
@@ -428,6 +540,75 @@ export async function runToolVersionImport(
       }
     }
 
+    const aiSummaryByRowIndex = new Map<number, string>();
+    const derivedFieldsByRowIndex = new Map<number, DerivedRowFields>();
+    const rowIdByRowIndex = new Map<number, string>();
+
+    if (payload.regenerateAi) {
+      const aiCandidates: AiSummaryCandidate[] = [];
+
+      for (const [index, row] of rows.entries()) {
+        const rowId = deriveImportId(row);
+        if (rowId) {
+          rowIdByRowIndex.set(index, rowId);
+        }
+
+        const derivedFields = deriveRowFields(row, columnToQuestionCode, codeToQuestion);
+        derivedFieldsByRowIndex.set(index, derivedFields);
+
+        if (!rowId || derivedFields.excelSummary) {
+          continue;
+        }
+
+        aiCandidates.push({
+          index,
+          rowNumber: index + 1,
+          name: derivedFields.name,
+          row,
+        });
+      }
+
+      if (aiCandidates.length > 0) {
+        const aiConcurrency = getAiSummaryConcurrency();
+        let completedAiCandidates = 0;
+
+        await emitProgress(onProgress, {
+          stage: "rows",
+          message: `Förgenererar ${aiCandidates.length} AI-sammanfattningar med ${aiConcurrency} samtidiga anrop...`,
+          versionId,
+          totalRows: rows.length,
+          processedRows: 0,
+        });
+
+        await processWithConcurrency(aiCandidates, aiConcurrency, async (candidate) => {
+          const aiSummary = await generateToolSummary(candidate.name, candidate.row);
+          if (aiSummary) {
+            aiSummaryByRowIndex.set(candidate.index, aiSummary);
+          }
+
+          completedAiCandidates++;
+
+          await emitProgress(onProgress, {
+            stage: "rows",
+            message: `AI ${completedAiCandidates}/${aiCandidates.length}: ${aiSummary ? "klar" : "ingen sammanfattning"} för rad ${candidate.rowNumber} (${candidate.name}).`,
+            versionId: versionId ?? undefined,
+            totalRows: rows.length,
+            processedRows: 0,
+            aiGeneratedCount: aiSummaryByRowIndex.size,
+          });
+        });
+
+        await emitProgress(onProgress, {
+          stage: "rows",
+          message: `AI-förbearbetning klar: ${aiSummaryByRowIndex.size}/${aiCandidates.length} sammanfattningar genererade.`,
+          versionId,
+          totalRows: rows.length,
+          processedRows: 0,
+          aiGeneratedCount: aiSummaryByRowIndex.size,
+        });
+      }
+    }
+
     let updatedCount = 0;
     let createdCount = 0;
     let skippedCount = 0;
@@ -436,7 +617,7 @@ export async function runToolVersionImport(
 
     for (const [index, row] of rows.entries()) {
       const rowNumber = index + 1;
-      const rowId = deriveImportId(row);
+      const rowId = rowIdByRowIndex.get(index) ?? deriveImportId(row);
 
       if (!rowId) {
         skippedCount++;
@@ -454,49 +635,11 @@ export async function runToolVersionImport(
         continue;
       }
 
-      const toolFieldsFromQuestions: Record<string, string> = {
-        name: "",
-        vendor: "",
-        website: "",
-        category: "",
-        secondary_category: "",
-      };
-
-      for (const [columnName, value] of Object.entries(row)) {
-        if (value === "" || value === null || value === undefined) continue;
-
-        const questionCode = columnToQuestionCode.get(columnName);
-        if (questionCode) {
-          const questionInfo = codeToQuestion.get(questionCode);
-          if (questionInfo?.questionType === "metadata" && questionInfo.mappedField) {
-            toolFieldsFromQuestions[questionInfo.mappedField] = String(value);
-          }
-        }
-      }
-
-      const name =
-        toolFieldsFromQuestions.name ||
-        getValue(row, ["Tool name", "Name", "name"]) ||
-        "Untitled Tool";
-      const vendor =
-        toolFieldsFromQuestions.vendor ||
-        getValue(row, ["Company", "Vendor", "vendor", "Provider"]);
-      const website =
-        toolFieldsFromQuestions.website ||
-        getValue(row, ["Web", "Website", "website", "URL"]);
-      const category =
-        toolFieldsFromQuestions.category ||
-        getValueByQuestionCode(row, PRIMARY_CATEGORY_QUESTION_CODE) ||
-        getValue(row, ["Main focus/category", "Category", "category", "Type"]);
-      const secondaryCategory =
-        toolFieldsFromQuestions.secondary_category ||
-        getValueByQuestionCode(row, SECONDARY_CATEGORY_QUESTION_CODE) ||
-        getValue(row, [
-          "2nd category",
-          "Secondary category",
-          "Subcategory",
-          "Sub category",
-        ]);
+      const derivedFields =
+        derivedFieldsByRowIndex.get(index) ??
+        deriveRowFields(row, columnToQuestionCode, codeToQuestion);
+      const { name, vendor, website, category, secondaryCategory, excelSummary } =
+        derivedFields;
 
       const slug = slugify(name);
       let existingTool = toolMapById.get(rowId);
@@ -504,7 +647,6 @@ export async function runToolVersionImport(
         existingTool = toolMapBySlug.get(slug);
       }
 
-      const excelSummary = getValue(row, ["Summary", "summary", "Description"]);
       let summary = excelSummary;
 
       await emitProgress(onProgress, {
@@ -520,19 +662,7 @@ export async function runToolVersionImport(
       });
 
       if (!summary && payload.regenerateAi) {
-        await emitProgress(onProgress, {
-          stage: "rows",
-          message: `Rad ${rowNumber}/${rows.length}: genererar AI-sammanfattning för "${name}"...`,
-          versionId,
-          totalRows: rows.length,
-          processedRows: rowNumber,
-          createdCount,
-          updatedCount,
-          skippedCount,
-          aiGeneratedCount,
-        });
-
-        const aiSummary = await generateToolSummary(name, row);
+        const aiSummary = aiSummaryByRowIndex.get(index);
         if (aiSummary) {
           summary = aiSummary;
           aiGeneratedCount++;
