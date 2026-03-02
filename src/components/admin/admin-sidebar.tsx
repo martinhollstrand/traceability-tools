@@ -13,7 +13,7 @@ export function AdminSidebar({ items }: SidebarProps) {
 
   return (
     <aside className="hidden w-64 border-r border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-6 lg:block">
-      <p className="mb-6 text-sm font-semibold tracking-[0.3em] text-[hsl(var(--muted))] uppercase">
+      <p className="mb-6 text-sm font-semibold tracking-[0.3em] text-[hsl(var(--muted))]">
         Admin
       </p>
       <nav className="space-y-2">

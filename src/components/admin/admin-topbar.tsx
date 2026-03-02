@@ -9,9 +9,7 @@ export function AdminTopbar({ user }: Props) {
   return (
     <header className="flex items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-6 py-4">
       <div>
-        <p className="text-xs tracking-[0.3em] text-[hsl(var(--muted))] uppercase">
-          Kontroller
-        </p>
+        <p className="text-xs tracking-[0.3em] text-[hsl(var(--muted))]">Kontroller</p>
         <p className="text-sm font-semibold text-[hsl(var(--foreground))]">
           {user.email}
         </p>

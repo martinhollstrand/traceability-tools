@@ -7,9 +7,15 @@ import { reportMetadataTable, toolsTable } from "@/server/db/schema";
 import { revalidatePath } from "next/cache";
 import type { Tool } from "@/lib/validators/tool";
 import type { ReportMetadata } from "@/lib/validators/report";
+import { normalizeReportKeyFindings } from "@/lib/report-key-findings";
 
-/** Question code used for search/filter categories (e.g. "Main focus/category [004]"). */
-const QUESTION_CODE_CATEGORY = "004";
+/** Question codes used for category handling in raw import data. */
+const QUESTION_CODE_PRIMARY_CATEGORY = "004";
+const QUESTION_CODE_SECONDARY_CATEGORY = "005";
+const QUESTION_CODE_CATEGORIES = [
+  QUESTION_CODE_PRIMARY_CATEGORY,
+  QUESTION_CODE_SECONDARY_CATEGORY,
+] as const;
 const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
 
 function getValueForQuestionCode(
@@ -58,11 +64,13 @@ export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]
         ${toolsTable.name} ILIKE ${pattern}
         OR coalesce(${toolsTable.vendor}, '') ILIKE ${pattern}
         OR coalesce(${toolsTable.category}, '') ILIKE ${pattern}
+        OR coalesce(${toolsTable.secondaryCategory}, '') ILIKE ${pattern}
         OR coalesce(${toolsTable.summary}, '') ILIKE ${pattern}
         OR coalesce(${toolsTable.website}, '') ILIKE ${pattern}
         OR ${toolsTable.name} % ${query}
         OR coalesce(${toolsTable.vendor}, '') % ${query}
         OR coalesce(${toolsTable.category}, '') % ${query}
+        OR coalesce(${toolsTable.secondaryCategory}, '') % ${query}
         OR coalesce(${toolsTable.summary}, '') % ${query}
         OR coalesce(${toolsTable.website}, '') % ${query}
       )
@@ -70,11 +78,11 @@ export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]
   }
 
   if (categories?.length) {
-    // Filter by question 004 value (stored in raw_data; 004 is often metadata so not in comparison_data).
+    // Filter by question 004/005 values in raw_data.
     // When multiple categories are selected, apply AND semantics to narrow results.
     const normalizedCategories = categories.map((c) => c.trim()).filter(Boolean);
     if (normalizedCategories.length > 0) {
-      const categoryPattern = `\\[${QUESTION_CODE_CATEGORY}\\]\\s*$`;
+      const categoryPattern = `\\[(?:${QUESTION_CODE_CATEGORIES.join("|")})\\]\\s*$`;
       const categoryClauses = normalizedCategories.map(
         (category) => sql`EXISTS (
           SELECT 1
@@ -139,7 +147,7 @@ export const getComparisonDataset = cache(async (ids: string[]): Promise<Tool[]>
   return rows.map(mapToolRow);
 });
 
-/** Returns distinct values from question 004 (used as search categories). Uses raw_data so 004 is included even when mapped as metadata. */
+/** Returns distinct values from question 004/005 for category filters. */
 export const getAvailableCategories = cache(async (): Promise<string[]> => {
   const rows = await db
     .select({ rawData: toolsTable.rawData })
@@ -148,11 +156,10 @@ export const getAvailableCategories = cache(async (): Promise<string[]> => {
 
   const categorySet = new Set<string>();
   for (const row of rows) {
-    const value = getValueForQuestionCode(
-      (row.rawData as Record<string, unknown>) ?? null,
-      QUESTION_CODE_CATEGORY,
-    );
-    if (value) {
+    const rawData = (row.rawData as Record<string, unknown>) ?? null;
+    for (const questionCode of QUESTION_CODE_CATEGORIES) {
+      const value = getValueForQuestionCode(rawData, questionCode);
+      if (!value) continue;
       for (const category of splitCategoryValues(value)) {
         categorySet.add(category);
       }
@@ -199,15 +206,11 @@ function mapToolRow(row: typeof toolsTable.$inferSelect): Tool {
 
 function mapReportRow(row: typeof reportMetadataTable.$inferSelect): ReportMetadata {
   const previewData = (row.previewData as Record<string, unknown>) ?? {};
-  const keyFindings = (row.keyFindings as string[]) ?? [];
-  // Transform string array to highlights format
-  const highlights: ReportMetadata["highlights"] = keyFindings.map((finding) => {
-    // Try to parse as "label: detail" format, or use the string as both
-    const parts = finding.split(": ");
-    return parts.length === 2
-      ? { label: parts[0]!, detail: parts[1]! }
-      : { label: finding, detail: finding };
-  });
+  const keyFindings = normalizeReportKeyFindings(row.keyFindings);
+  const highlights: ReportMetadata["highlights"] = keyFindings.map((finding) => ({
+    label: finding.headline,
+    detail: finding.text,
+  }));
 
   // Merge PDF metadata into previewData
   const metadata = {

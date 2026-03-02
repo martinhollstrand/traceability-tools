@@ -2,7 +2,7 @@ import { type HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 const variants = {
-  lead: "text-lg text-balance text-[hsl(var(--muted))]",
+  lead: "text-lg text-balance text-foreground/80",
   body: "text-base text-[hsl(var(--muted))]",
   small: "text-sm text-[hsl(var(--muted))]",
 } as const;

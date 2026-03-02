@@ -109,7 +109,10 @@ export async function getQuestionByCode(code: string): Promise<SurveyQuestion | 
 const updateQuestionSchema = z.object({
   id: z.string().uuid(),
   questionType: z.enum(["metadata", "survey"]).optional(),
-  mappedField: z.enum(["name", "vendor", "website", "category"]).nullable().optional(),
+  mappedField: z
+    .enum(["name", "vendor", "website", "category", "secondary_category"])
+    .nullable()
+    .optional(),
   forComparison: z.boolean().optional(),
   isMultipleChoice: z.boolean().optional(),
   supportiveText: z.string().optional().nullable(),

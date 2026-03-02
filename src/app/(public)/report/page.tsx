@@ -17,12 +17,10 @@ export default async function ReportPage() {
 
   // Convert ReportMetadataPayload to ReportMetadata format
   const highlights: ReportMetadata["highlights"] = reportData.keyFindings.map(
-    (finding) => {
-      const parts = finding.split(": ");
-      return parts.length === 2
-        ? { label: parts[0]!, detail: parts[1]! }
-        : { label: finding, detail: finding };
-    },
+    (finding) => ({
+      label: finding.headline,
+      detail: finding.text,
+    }),
   );
 
   const report: ReportMetadata = {
@@ -41,9 +39,7 @@ export default async function ReportPage() {
   return (
     <div className="space-y-10">
       <div className="space-y-2">
-        <p className="text-muted-foreground text-sm tracking-widest uppercase">
-          Briefings
-        </p>
+        <p className="text-muted-foreground text-sm tracking-widest">Briefings</p>
         <h1 className="text-3xl font-semibold">{report.title}</h1>
         {reportData.ingress && (
           <p className="text-muted-foreground text-sm">{reportData.ingress}</p>

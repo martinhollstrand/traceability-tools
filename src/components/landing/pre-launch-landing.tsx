@@ -18,7 +18,7 @@ export function PreLaunchLanding() {
 
       {/* Launch announcement */}
       <div className="text-center">
-        <p className="text-muted-foreground text-lg font-medium tracking-wide uppercase">
+        <p className="text-muted-foreground text-lg font-medium tracking-wide">
           Launching March 11, 2026
         </p>
       </div>

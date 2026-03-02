@@ -30,6 +30,34 @@ function parseMultipleChoiceValue(value: string): string[] {
     .filter((item) => item.length > 0);
 }
 
+type DetailEntry = {
+  id: string;
+  label: string;
+  supportiveText?: string | null;
+  value: string;
+  items: string[];
+  isLongForm: boolean;
+};
+
+function normalizeFieldValue(value: unknown): string {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function shouldUseLongForm(
+  value: string,
+  items: string[],
+  isMultipleChoice: boolean,
+): boolean {
+  if (!value) return false;
+  if (value.length > 180) return true;
+  if (items.length >= 3) return true;
+  if (isMultipleChoice && items.length >= 2) return true;
+  if (items.length >= 2 && value.length > 120) return true;
+  return false;
+}
+
 export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
   const { slug } = await params;
   const [tool, questions] = await Promise.all([
@@ -68,92 +96,166 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
     },
   );
 
+  const detailEntries: DetailEntry[] = [];
+
+  if (toolFields.vendor) {
+    const vendorValue = normalizeFieldValue(toolFields.vendor);
+    if (vendorValue) {
+      detailEntries.push({
+        id: "vendor",
+        label: "Vendor",
+        value: vendorValue,
+        items: [],
+        isLongForm: false,
+      });
+    }
+  }
+
+  for (const [key, value] of comparisonEntries) {
+    const code = extractQuestionCode(key);
+    const question = code ? questionsByCode.get(code) : null;
+    const label = question?.questionText ?? key.replace(QUESTION_CODE_REGEX, "").trim();
+
+    const normalizedValue = normalizeFieldValue(
+      Array.isArray(value) ? value.join("; ") : value,
+    );
+    if (!normalizedValue) continue;
+
+    const isMultipleChoice = question?.isMultipleChoice === true;
+    const semicolonItems = normalizedValue.includes(";")
+      ? parseMultipleChoiceValue(normalizedValue)
+      : [];
+
+    detailEntries.push({
+      id: key,
+      label,
+      supportiveText: question?.supportiveText ?? null,
+      value: normalizedValue,
+      items: semicolonItems,
+      isLongForm: shouldUseLongForm(normalizedValue, semicolonItems, isMultipleChoice),
+    });
+  }
+
+  const compactEntries = detailEntries.filter((entry) => !entry.isLongForm);
+  const longFormEntries = detailEntries.filter((entry) => entry.isLongForm);
+
   return (
-    <div className="py-12">
-      <Container className="space-y-8">
-        <div className="space-y-3">
-          <p className="text-sm font-semibold tracking-[0.3em] text-[hsl(var(--muted))] uppercase">
+    <div className="py-8 md:py-10">
+      <Container className="max-w-4xl space-y-8">
+        <header className="space-y-2">
+          <p className="text-muted-foreground text-sm font-medium">
             {toolFields.category ?? "Uncategorized"}
           </p>
-          <h1 className="text-4xl font-semibold text-[hsl(var(--foreground))]">
+          <h1 className="text-foreground text-3xl font-semibold md:text-4xl">
             {toolFields.name}
           </h1>
           {tool.summary && (
-            <div>
-              <Text variant="lead">{tool.summary}</Text>
-              <p className="mt-1 text-xs text-[hsl(var(--muted))]/50 italic">
+            <div className="space-y-1">
+              <Text variant="lead" className="leading-relaxed">
+                {tool.summary}
+              </Text>
+              <p className="text-xs text-[hsl(var(--muted))]/70 italic">
                 {AI_SUMMARY_SOURCE_NOTE}
               </p>
             </div>
           )}
-        </div>
+        </header>
 
-        {comparisonEntries.length > 0 && (
-          <div className="border-border/50 overflow-hidden rounded-[32px] border bg-[hsl(var(--surface))]/70 shadow-[0_26px_90px_-45px_hsl(var(--primary)/0.55)]">
-            <div className="border-border/40 grid grid-cols-[220px,1fr] items-stretch border-b bg-[hsl(var(--surface-strong))]/70">
-              <div className="text-muted-foreground text-md border-border/40 border-r px-6 py-4 font-semibold uppercase">
-                Tool
-              </div>
-              <div className="px-6 py-4">
-                <span className="text-foreground text-xl font-semibold">
-                  {toolFields.name}
-                </span>
-              </div>
+        {compactEntries.length > 0 && (
+          <section className="space-y-4">
+            <h2 className="text-foreground text-lg font-semibold">Quick facts</h2>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+              {compactEntries.map((entry) => (
+                <article
+                  key={entry.id}
+                  className="border-border/60 min-w-0 space-y-2 rounded-xl border bg-[hsl(var(--background))] p-4"
+                >
+                  <h3 className="text-muted-foreground text-xs font-medium tracking-wide">
+                    {entry.label}
+                  </h3>
+                  <div className="text-foreground space-y-1.5 text-[15px] leading-6">
+                    {entry.items.length > 1 ? (
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                        {entry.items.map((item, index) => (
+                          <span
+                            key={`${entry.id}-${index}`}
+                            className="inline-flex items-center"
+                          >
+                            <AutoLinkedText
+                              text={item}
+                              className="text-[15px] leading-6 break-words"
+                            />
+                            {index < entry.items.length - 1 && (
+                              <span className="text-muted-foreground/50 mx-1.5">·</span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <AutoLinkedText
+                        text={entry.value}
+                        className="text-[15px] leading-6 break-words"
+                      />
+                    )}
+                    {entry.supportiveText && (
+                      <p className="text-muted-foreground/80 text-xs leading-relaxed">
+                        {entry.supportiveText}
+                      </p>
+                    )}
+                  </div>
+                </article>
+              ))}
             </div>
-            <div className="divide-border/60 divide-y">
-              {toolFields.vendor && (
-                <div className="bg-background/55 grid grid-cols-[220px,1fr] items-stretch">
-                  <div className="text-muted-foreground border-border/40 flex flex-col gap-1 border-r bg-[hsl(var(--surface))] px-6 py-5">
-                    <span className="text-md font-semibold uppercase">Description</span>
-                  </div>
-                  <div className="space-y-2 px-6 py-5">
-                    <span className="text-sm">{toolFields.vendor}</span>
-                  </div>
-                </div>
-              )}
-              {comparisonEntries.map(([key, value]) => {
-                const code = extractQuestionCode(key);
-                const question = code ? questionsByCode.get(code) : null;
-                const label =
-                  question?.questionText ?? key.replace(QUESTION_CODE_REGEX, "").trim();
-
-                const stringVal = Array.isArray(value) ? value.join(", ") : String(value);
-                const isMultiChoice = question?.isMultipleChoice;
-                const items = isMultiChoice ? parseMultipleChoiceValue(stringVal) : [];
-
-                return (
-                  <div
-                    key={key}
-                    className="bg-background/55 grid grid-cols-[220px,1fr] items-stretch"
-                  >
-                    <div className="text-muted-foreground border-border/40 flex flex-col gap-1 border-r bg-[hsl(var(--surface))] px-6 py-5">
-                      <span className="text-md font-semibold uppercase">{label}</span>
-                      {question?.supportiveText && (
-                        <span className="text-muted-foreground/70 text-[10px] leading-tight font-normal tracking-normal normal-case">
-                          {question.supportiveText}
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-y-2 px-6 py-5">
-                      {isMultiChoice && items.length >= 1 ? (
-                        <ul className="list-disc space-y-0.5 pl-4 text-sm">
-                          {items.map((item, index) => (
-                            <li key={index}>
-                              <AutoLinkedText text={item} />
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <AutoLinkedText text={stringVal} className="text-sm" />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          </section>
         )}
-        {comparisonEntries.length === 0 && (
+
+        {longFormEntries.length > 0 && (
+          <section className="space-y-6 pt-1">
+            <h2 className="text-foreground text-lg font-semibold">Details</h2>
+            <div className="space-y-12 md:space-y-16">
+              {longFormEntries.map((entry) => (
+                <article key={entry.id} className="space-y-4">
+                  <h3 className="text-foreground text-2xl leading-tight font-semibold md:text-3xl">
+                    {entry.label}
+                  </h3>
+                  {entry.supportiveText && (
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      {entry.supportiveText}
+                    </p>
+                  )}
+
+                  {entry.items.length > 1 ? (
+                    <ul className="text-foreground m-0 list-none space-y-2 p-0 text-[15px] leading-7">
+                      {entry.items.map((item, index) => (
+                        <li
+                          key={`${entry.id}-item-${index}`}
+                          className="flex items-start gap-2"
+                        >
+                          <span
+                            className="text-foreground/70 mt-[0.08em] shrink-0 text-base leading-7"
+                            aria-hidden
+                          >
+                            •
+                          </span>
+                          <AutoLinkedText text={item} className="text-[15px] leading-7" />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-foreground text-[15px] leading-7">
+                      <AutoLinkedText
+                        text={entry.value}
+                        className="text-[15px] leading-7"
+                      />
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {detailEntries.length === 0 && (
           <Card className="space-y-4">
             <Text>No data points yet.</Text>
           </Card>

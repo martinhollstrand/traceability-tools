@@ -38,9 +38,7 @@ export default function AdminReportsPageClient({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs tracking-[0.4em] text-[hsl(var(--muted))] uppercase">
-          Reports
-        </p>
+        <p className="text-xs tracking-[0.4em] text-[hsl(var(--muted))]">Reports</p>
         <h1 className="text-3xl font-semibold text-[hsl(var(--foreground))]">
           Publishing controls
         </h1>

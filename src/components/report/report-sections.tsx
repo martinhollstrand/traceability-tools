@@ -16,9 +16,11 @@ export function ReportSections({ report }: ReportSectionsProps) {
           <CardHeader>
             <CardTitle className="text-base">{highlight.label}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground text-sm">{highlight.detail}</p>
-          </CardContent>
+          {highlight.detail ? (
+            <CardContent>
+              <p className="text-muted-foreground text-sm">{highlight.detail}</p>
+            </CardContent>
+          ) : null}
         </Card>
       ))}
     </div>

@@ -7,9 +7,7 @@ export default async function QuestionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs tracking-[0.4em] text-[hsl(var(--muted))] uppercase">
-          Survey
-        </p>
+        <p className="text-xs tracking-[0.4em] text-[hsl(var(--muted))]">Survey</p>
         <h1 className="text-3xl font-semibold text-[hsl(var(--foreground))]">
           Question Management
         </h1>

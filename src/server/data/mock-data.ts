@@ -101,9 +101,18 @@ export const mockReportMetadata = {
   ingress:
     "Sammanfattning av 50+ verktyg med fokus på CSRD, klimatdata och leverantörsspårning.",
   keyFindings: [
-    "AI-sammanfattningar ger tydligare beslutsunderlag",
-    "Versionering av Excel-importer är kritiskt för datakvalitet",
-    "Integrationsdjup varierar kraftigt mellan kategorier",
+    {
+      headline: "AI-sammanfattningar",
+      text: "Ger tydligare beslutsunderlag för urval och uppföljning.",
+    },
+    {
+      headline: "Versionshantering av import",
+      text: "Är kritiskt för datakvalitet och spårbar historik.",
+    },
+    {
+      headline: "Integrationsdjup",
+      text: "Varierar kraftigt mellan kategorier och leverantörer.",
+    },
   ],
   pdfUrl: "https://example.com/report.pdf",
   isPublished: true,

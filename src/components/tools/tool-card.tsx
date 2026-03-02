@@ -23,7 +23,7 @@ export function ToolCard({ tool }: ToolCardProps) {
           <span>{tool.name}</span>
           <Badge
             variant="secondary"
-            className="border-primary/25 bg-primary/12 text-primary border text-[11px] font-medium tracking-[0.28em] uppercase"
+            className="border-primary/25 bg-primary/12 text-primary border text-[11px] font-medium tracking-[0.28em]"
           >
             {tool.category}
           </Badge>

@@ -83,7 +83,7 @@ export function FilterBar({
     >
       {/* Search — compact */}
       <div>
-        <label className="text-muted-foreground mb-2 block text-xs font-semibold tracking-wider uppercase">
+        <label className="text-muted-foreground mb-2 block text-xs font-semibold tracking-wider">
           Search
         </label>
         <Input
@@ -107,7 +107,7 @@ export function FilterBar({
           )}
         />
         <p className="text-muted-foreground/60 mt-1.5 text-[10px]">
-          Searches name, vendor, category, summary, and website
+          Searches name, vendor, category, and summary
         </p>
       </div>
 
@@ -123,7 +123,7 @@ export function FilterBar({
               {categories.length}
             </span>
           )}
-          <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+          <span className="text-muted-foreground text-xs font-semibold tracking-wider">
             Categories
           </span>
           <ChevronDown

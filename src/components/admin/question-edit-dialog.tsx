@@ -35,6 +35,7 @@ const MAPPED_FIELD_OPTIONS: Array<{ value: MappedField | "none"; label: string }
   { value: "vendor", label: "Vendor / Company" },
   { value: "website", label: "Website" },
   { value: "category", label: "Category" },
+  { value: "secondary_category", label: "2nd Category" },
 ];
 
 function SubmitButton() {

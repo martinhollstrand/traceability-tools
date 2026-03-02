@@ -34,9 +34,7 @@ export function CompareContent({ tools, questions }: CompareContentProps) {
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-muted-foreground text-sm tracking-widest uppercase">
-            Workspace
-          </p>
+          <p className="text-muted-foreground text-sm tracking-widest">Workspace</p>
           <h1 className="text-3xl font-semibold">Comparison</h1>
           <p className="text-muted-foreground text-sm">
             Select up to three tools to unlock AI insights, metadata diffs, and exportable

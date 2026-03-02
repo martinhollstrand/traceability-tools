@@ -12,6 +12,8 @@ import { generateToolSummary } from "@/server/ai/summary";
 
 // Regex to match question codes like [001], [002], etc.
 const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
+const PRIMARY_CATEGORY_QUESTION_CODE = "004";
+const SECONDARY_CATEGORY_QUESTION_CODE = "005";
 
 // Type definitions for question type and mapped field
 type QuestionType = "metadata" | "survey";
@@ -134,6 +136,17 @@ function getValue(row: Record<string, unknown>, targetKeys: string[]): string {
   for (const key of targetKeys) {
     const val = normalizedRow[normalizeKey(key)];
     if (val) return val;
+  }
+  return "";
+}
+
+function getValueByQuestionCode(row: Record<string, unknown>, code: string): string {
+  for (const [key, value] of Object.entries(row)) {
+    const match = key.match(QUESTION_CODE_REGEX);
+    if (match?.[1] !== code) continue;
+
+    const normalized = String(value ?? "").trim();
+    if (normalized) return normalized;
   }
   return "";
 }
@@ -375,9 +388,11 @@ export async function uploadExcelAction(
         getValue(row, ["Web", "Website", "website", "URL"]);
       const category =
         toolFieldsFromQuestions.category ||
+        getValueByQuestionCode(row, PRIMARY_CATEGORY_QUESTION_CODE) ||
         getValue(row, ["Main focus/category", "Category", "category", "Type"]);
       const secondaryCategory =
         toolFieldsFromQuestions.secondary_category ||
+        getValueByQuestionCode(row, SECONDARY_CATEGORY_QUESTION_CODE) ||
         getValue(row, [
           "2nd category",
           "Secondary category",

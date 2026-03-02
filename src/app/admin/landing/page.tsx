@@ -8,9 +8,7 @@ export default async function AdminLandingPage() {
   return (
     <div className="space-y-10">
       <div>
-        <p className="text-xs tracking-[0.4em] text-[hsl(var(--muted))] uppercase">
-          Site
-        </p>
+        <p className="text-xs tracking-[0.4em] text-[hsl(var(--muted))]">Site</p>
         <h1 className="text-3xl font-semibold text-[hsl(var(--foreground))]">
           Landing page
         </h1>

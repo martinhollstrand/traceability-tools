@@ -65,7 +65,7 @@ export function LandingPageClient({ initialSettings, tools }: LandingPageClientP
         <CardContent>
           <form action={formAction} className="space-y-8">
             <div className="space-y-4">
-              <Label className="text-xs tracking-wider uppercase">Hero</Label>
+              <Label className="text-xs tracking-wider">Hero</Label>
               <div className="grid gap-4 sm:grid-cols-1">
                 <div>
                   <Label htmlFor="heroBadge">Badge text</Label>
@@ -98,10 +98,10 @@ export function LandingPageClient({ initialSettings, tools }: LandingPageClientP
             </div>
 
             <div className="space-y-4">
-              <Label className="text-xs tracking-wider uppercase">Featured section</Label>
+              <Label className="text-xs tracking-wider">Featured section</Label>
               <div className="grid gap-4 sm:grid-cols-1">
                 <div>
-                  <Label htmlFor="featuredLabel">Label (small uppercase)</Label>
+                  <Label htmlFor="featuredLabel">Label (small text)</Label>
                   <Input
                     id="featuredLabel"
                     name="featuredLabel"
@@ -131,9 +131,7 @@ export function LandingPageClient({ initialSettings, tools }: LandingPageClientP
             </div>
 
             <div className="space-y-4">
-              <Label className="text-xs tracking-wider uppercase">
-                Insight bullets (3)
-              </Label>
+              <Label className="text-xs tracking-wider">Insight bullets (3)</Label>
               {[0, 1, 2].map((i) => (
                 <div key={i} className="grid gap-2 rounded-lg border p-4 sm:grid-cols-3">
                   <div>

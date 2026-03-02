@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { reportMetadataTable } from "@/server/db/schema";
 import { logger } from "@/lib/logger";
+import { normalizeReportKeyFindings } from "@/lib/report-key-findings";
 import { mockReportMetadata } from "@/server/data/mock-data";
 import { type ReportMetadataPayload } from "@/server/data/types";
 
@@ -29,7 +30,7 @@ export const getReportMetadata = cache(async (): Promise<ReportMetadataPayload> 
       return {
         ...mockReportMetadata,
         ingress: mockReportMetadata.ingress ?? null,
-        keyFindings: mockReportMetadata.keyFindings,
+        keyFindings: normalizeReportKeyFindings(mockReportMetadata.keyFindings),
         pdfUrl: mockReportMetadata.pdfUrl ?? null,
         pdfFilename: null,
         pdfSize: null,
@@ -42,7 +43,7 @@ export const getReportMetadata = cache(async (): Promise<ReportMetadataPayload> 
     return {
       title: row.title,
       ingress: row.ingress,
-      keyFindings: row.keyFindings ?? [],
+      keyFindings: normalizeReportKeyFindings(row.keyFindings),
       pdfUrl: row.pdfUrl,
       pdfFilename: row.pdfFilename ?? null,
       pdfSize: row.pdfSize ?? null,
@@ -55,7 +56,7 @@ export const getReportMetadata = cache(async (): Promise<ReportMetadataPayload> 
     return {
       title: mockReportMetadata.title,
       ingress: mockReportMetadata.ingress,
-      keyFindings: mockReportMetadata.keyFindings,
+      keyFindings: normalizeReportKeyFindings(mockReportMetadata.keyFindings),
       pdfUrl: mockReportMetadata.pdfUrl,
       pdfFilename: null,
       pdfSize: null,
@@ -89,7 +90,7 @@ export const listAllReports = cache(async (): Promise<ReportMetadataPayload[]> =
       id: row.id,
       title: row.title,
       ingress: row.ingress,
-      keyFindings: row.keyFindings ?? [],
+      keyFindings: normalizeReportKeyFindings(row.keyFindings),
       pdfUrl: row.pdfUrl,
       pdfFilename: row.pdfFilename,
       pdfSize: row.pdfSize,
@@ -134,7 +135,7 @@ export const getReportById = cache(
         id: row.id,
         title: row.title,
         ingress: row.ingress,
-        keyFindings: row.keyFindings ?? [],
+        keyFindings: normalizeReportKeyFindings(row.keyFindings),
         pdfUrl: row.pdfUrl,
         pdfFilename: row.pdfFilename,
         pdfSize: row.pdfSize,
@@ -180,7 +181,7 @@ export const getPublishedReport = cache(
         id: row.id,
         title: row.title,
         ingress: row.ingress,
-        keyFindings: row.keyFindings ?? [],
+        keyFindings: normalizeReportKeyFindings(row.keyFindings),
         pdfUrl: row.pdfUrl,
         pdfFilename: row.pdfFilename,
         pdfSize: row.pdfSize,

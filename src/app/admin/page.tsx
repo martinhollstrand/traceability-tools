@@ -6,9 +6,7 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-xs tracking-[0.4em] text-[hsl(var(--muted))] uppercase">
-          Overview
-        </p>
+        <p className="text-xs tracking-[0.4em] text-[hsl(var(--muted))]">Overview</p>
         <h1 className="text-3xl font-semibold text-[hsl(var(--foreground))]">
           Operations console
         </h1>
@@ -41,9 +39,7 @@ export default async function AdminDashboard() {
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-5">
-      <p className="text-xs tracking-[0.3em] text-[hsl(var(--muted))] uppercase">
-        {label}
-      </p>
+      <p className="text-xs tracking-[0.3em] text-[hsl(var(--muted))]">{label}</p>
       <p className="mt-2 text-3xl font-semibold text-[hsl(var(--foreground))]">{value}</p>
     </div>
   );

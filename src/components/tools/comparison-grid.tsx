@@ -15,7 +15,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThinkingLoader } from "@/components/ui/thinking-loader";
 import { AutoLinkedText } from "@/components/ui/auto-linked-text";
 import type { Tool } from "@/lib/validators/tool";
-import { AI_SUMMARY_SOURCE_NOTE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
   ChevronDown,
@@ -223,16 +222,10 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
     {
       label: "Summary",
       subtle: true,
+      supportiveText: "AI gererated from all supplier submited data",
       render: (tool) =>
         tool.summary ? (
-          <div>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              {tool.summary}
-            </p>
-            <p className="text-muted-foreground/50 mt-1 text-[10px] italic">
-              {AI_SUMMARY_SOURCE_NOTE}
-            </p>
-          </div>
+          <p className="text-muted-foreground text-sm leading-relaxed">{tool.summary}</p>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         ),
@@ -367,7 +360,7 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
                 className="border-border/40 grid items-stretch gap-0 border-b bg-[hsl(var(--surface-strong))]/70"
                 style={gridTemplateStyle}
               >
-                <div className="text-muted-foreground border-border/40 text-md sticky left-0 z-10 border-r bg-[hsl(var(--surface-strong))] px-6 py-4 font-semibold uppercase shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]">
+                <div className="text-muted-foreground border-border/40 text-md sticky left-0 z-10 border-r bg-[hsl(var(--surface-strong))] px-6 py-4 font-semibold shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]">
                   Tool
                 </div>
                 {tools.map((tool) => (
@@ -378,9 +371,7 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
                     >
                       {tool.name}
                     </Link>
-                    <span className="text-muted-foreground text-xs uppercase">
-                      {tool.category}
-                    </span>
+                    <span className="text-muted-foreground text-xs">{tool.category}</span>
                   </div>
                 ))}
               </div>
@@ -395,7 +386,7 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
                     style={gridTemplateStyle}
                   >
                     <div className="text-muted-foreground border-border/40 sticky left-0 z-10 flex flex-col gap-1 border-r bg-[hsl(var(--surface))] px-6 py-5 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]">
-                      <span className="text-md font-semibold uppercase">{row.label}</span>
+                      <span className="text-md font-semibold">{row.label}</span>
                       {row.supportiveText && (
                         <span className="text-muted-foreground/70 text-[10px] leading-tight font-normal tracking-normal normal-case">
                           {row.supportiveText}
@@ -491,7 +482,7 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
 
                   return (
                     <div key={key}>
-                      <p className="text-foreground mb-1 text-xs font-semibold tracking-wider uppercase">
+                      <p className="text-foreground mb-1 text-xs font-semibold tracking-wider">
                         {label}
                       </p>
                       {question?.supportiveText && (

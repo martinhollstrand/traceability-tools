@@ -15,7 +15,7 @@ export const reportMetadataTable = pgTable("report_metadata", {
   title: text("title").notNull(),
   ingress: text("ingress"),
   keyFindings: jsonb("key_findings")
-    .$type<string[]>()
+    .$type<Array<{ headline: string; text: string }> | string[]>()
     .notNull()
     .default(sql`'[]'::jsonb`),
   pdfUrl: text("pdf_url"),

@@ -1,3 +1,5 @@
+import type { ReportKeyFinding } from "@/lib/report-key-findings";
+
 export type ToolStatus = "draft" | "published" | "archived";
 
 export type ToolListItem = {
@@ -25,7 +27,7 @@ export type ReportMetadataPayload = {
   id?: string;
   title: string;
   ingress: string | null;
-  keyFindings: string[];
+  keyFindings: ReportKeyFinding[];
   pdfUrl: string | null;
   pdfFilename: string | null;
   pdfSize: number | null;

@@ -6,12 +6,13 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { reportMetadataTable, adminUsersTable } from "@/server/db/schema";
 import { requireAdminSession } from "@/server/auth/session";
+import { normalizeReportKeyFindings } from "@/lib/report-key-findings";
 
 const reportSchema = z.object({
   id: z.string().uuid().optional().or(z.literal("")), // Empty string means new report
   title: z.string().min(3),
   ingress: z.string().optional(),
-  keyFindings: z.string().optional(),
+  keyFindingsJson: z.string().optional(),
   pdfUrl: z
     .string()
     .refine(
@@ -44,12 +45,15 @@ export async function saveReportAction(
   }
 
   const payload = parsed.data;
-  const keyFindings = payload.keyFindings
-    ? payload.keyFindings
-        .split("\n")
-        .map((item) => item.trim())
-        .filter(Boolean)
-    : [];
+  const keyFindings = (() => {
+    if (!payload.keyFindingsJson) return [];
+    try {
+      const parsedJson = JSON.parse(payload.keyFindingsJson) as unknown;
+      return normalizeReportKeyFindings(parsedJson);
+    } catch {
+      return [];
+    }
+  })();
 
   try {
     const db = getDb();

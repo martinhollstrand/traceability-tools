@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { useState, useEffect } from "react";
 import { saveReportAction, type ReportState } from "@/server/actions/report";
 import { type ReportMetadataPayload } from "@/server/data/types";
+import type { ReportKeyFinding } from "@/lib/report-key-findings";
 import { Card } from "@/components/ui/card";
 
 const initialState: ReportState = { success: false };
@@ -13,6 +14,10 @@ type Props = {
   initial: ReportMetadataPayload;
   onSaved?: () => void;
 };
+
+function createEmptyKeyFinding(): ReportKeyFinding {
+  return { headline: "", text: "" };
+}
 
 export function ReportForm({ initial, onSaved }: Props) {
   const [state, formAction] = useActionState(saveReportAction, initialState);
@@ -31,7 +36,14 @@ export function ReportForm({ initial, onSaved }: Props) {
         }
       : null,
   );
-  const defaultFindings = initial.keyFindings?.join("\n") || "";
+  const [keyFindings, setKeyFindings] = useState<ReportKeyFinding[]>(
+    initial.keyFindings.length > 0
+      ? initial.keyFindings.map((finding) => ({
+          headline: finding.headline,
+          text: finding.text,
+        }))
+      : [createEmptyKeyFinding()],
+  );
   const isNewReport = !initial.id;
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,7 +107,21 @@ export function ReportForm({ initial, onSaved }: Props) {
           }
         : null,
     );
-  }, [initial.id, initial.pdfUrl, initial.pdfFilename, initial.pdfSize]);
+    setKeyFindings(
+      initial.keyFindings.length > 0
+        ? initial.keyFindings.map((finding) => ({
+            headline: finding.headline,
+            text: finding.text,
+          }))
+        : [createEmptyKeyFinding()],
+    );
+  }, [
+    initial.id,
+    initial.pdfUrl,
+    initial.pdfFilename,
+    initial.pdfSize,
+    initial.keyFindings,
+  ]);
 
   // Call onSaved when report is successfully saved
   useEffect(() => {
@@ -103,6 +129,38 @@ export function ReportForm({ initial, onSaved }: Props) {
       onSaved();
     }
   }, [state.success, onSaved]);
+
+  const updateKeyFinding = (
+    index: number,
+    field: keyof ReportKeyFinding,
+    value: string,
+  ) => {
+    setKeyFindings((current) =>
+      current.map((finding, findingIndex) =>
+        findingIndex === index ? { ...finding, [field]: value } : finding,
+      ),
+    );
+  };
+
+  const addKeyFinding = () => {
+    setKeyFindings((current) => [...current, createEmptyKeyFinding()]);
+  };
+
+  const removeKeyFinding = (index: number) => {
+    setKeyFindings((current) => {
+      if (current.length <= 1) return current;
+      return current.filter((_, findingIndex) => findingIndex !== index);
+    });
+  };
+
+  const serializedKeyFindings = JSON.stringify(
+    keyFindings
+      .map((finding) => ({
+        headline: finding.headline.trim(),
+        text: finding.text.trim(),
+      }))
+      .filter((finding) => finding.headline || finding.text),
+  );
 
   return (
     <Card className="space-y-4">
@@ -129,16 +187,79 @@ export function ReportForm({ initial, onSaved }: Props) {
             className="w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 py-3 text-sm text-[hsl(var(--foreground))] outline-none placeholder:text-[hsl(var(--muted))] focus:ring-2 focus:ring-[hsl(var(--primary))]/40"
           />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           <label className="text-sm font-medium text-[hsl(var(--foreground))]">
-            Key findings (en per rad)
+            Key findings
           </label>
-          <textarea
-            name="keyFindings"
-            defaultValue={defaultFindings}
-            rows={5}
-            className="w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 py-3 text-sm text-[hsl(var(--foreground))] outline-none placeholder:text-[hsl(var(--muted))] focus:ring-2 focus:ring-[hsl(var(--primary))]/40"
-          />
+          <p className="text-xs text-[hsl(var(--muted))]">
+            Add a headline and supporting text for each finding.
+          </p>
+          <div className="space-y-3">
+            {keyFindings.map((finding, index) => (
+              <div
+                key={`finding-${index}`}
+                className="space-y-3 rounded-[16px] border border-[hsl(var(--border))]/80 bg-[hsl(var(--surface))]/70 p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium tracking-wide text-[hsl(var(--muted))]">
+                    Finding {index + 1}
+                  </p>
+                  {keyFindings.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeKeyFinding(index)}
+                      className="rounded-full px-2.5 py-1 text-xs font-medium text-[hsl(var(--muted))] transition-colors hover:bg-[hsl(var(--background))] hover:text-[hsl(var(--foreground))]"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor={`finding-headline-${index}`}
+                    className="text-xs font-medium text-[hsl(var(--muted))]"
+                  >
+                    Headline
+                  </label>
+                  <input
+                    id={`finding-headline-${index}`}
+                    value={finding.headline}
+                    onChange={(event) =>
+                      updateKeyFinding(index, "headline", event.target.value)
+                    }
+                    placeholder="e.g. Strong integration coverage"
+                    className="w-full rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 py-2.5 text-sm text-[hsl(var(--foreground))] outline-none placeholder:text-[hsl(var(--muted))] focus:ring-2 focus:ring-[hsl(var(--primary))]/40"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor={`finding-text-${index}`}
+                    className="text-xs font-medium text-[hsl(var(--muted))]"
+                  >
+                    Supporting text
+                  </label>
+                  <textarea
+                    id={`finding-text-${index}`}
+                    value={finding.text}
+                    onChange={(event) =>
+                      updateKeyFinding(index, "text", event.target.value)
+                    }
+                    placeholder="Add the explanatory detail shown in the report card."
+                    rows={3}
+                    className="w-full rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 py-2.5 text-sm text-[hsl(var(--foreground))] outline-none placeholder:text-[hsl(var(--muted))] focus:ring-2 focus:ring-[hsl(var(--primary))]/40"
+                  />
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addKeyFinding}
+              className="rounded-full border border-[hsl(var(--border))] px-3 py-1.5 text-sm font-medium text-[hsl(var(--foreground))] transition-colors hover:bg-[hsl(var(--surface-strong))]"
+            >
+              + Add key finding
+            </button>
+          </div>
+          <input type="hidden" name="keyFindingsJson" value={serializedKeyFindings} />
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium text-[hsl(var(--foreground))]">

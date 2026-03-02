@@ -62,7 +62,7 @@ export async function MainLanding() {
       <section className="space-y-10">
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
-            <p className="text-muted-foreground/80 text-xs tracking-[0.35em] uppercase">
+            <p className="text-muted-foreground/80 text-xs tracking-[0.35em]">
               {settings.featuredSection.label}
             </p>
             <h2 className="text-3xl font-semibold">{settings.featuredSection.title}</h2>
