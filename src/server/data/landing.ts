@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "@/server/db";
 import { landingSettingsTable } from "@/server/db/schema";
-import type { LandingContent } from "@/server/db/schema/landing-settings";
+import type { LandingContent, SiteContent } from "@/server/db/schema/landing-settings";
 
 const DEFAULT_LANDING: LandingContent = {
   hero: {
@@ -46,13 +46,14 @@ export const getLandingSettings = cache(async (): Promise<LandingContent> => {
     .where(eq(landingSettingsTable.id, "default"))
     .limit(1);
 
-  const content = row?.content as LandingContent | null | undefined;
+  const content = row?.content as SiteContent | null | undefined;
   if (!content?.hero?.headline) {
     return DEFAULT_LANDING;
   }
+  const insightBullets = content.insightBullets ?? [];
   const bullets =
-    content.insightBullets?.length >= 3
-      ? content.insightBullets.slice(0, 3).map((b, i) => ({
+    insightBullets.length >= 3
+      ? insightBullets.slice(0, 3).map((b, i) => ({
           ...DEFAULT_LANDING.insightBullets[i],
           ...b,
         }))

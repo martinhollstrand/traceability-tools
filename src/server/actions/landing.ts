@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getDb } from "@/server/db";
 import { landingSettingsTable, toolsTable } from "@/server/db/schema";
 import { requireAdminSession } from "@/server/auth/session";
-import type { LandingContent } from "@/server/db/schema/landing-settings";
+import type { LandingContent, SiteContent } from "@/server/db/schema/landing-settings";
 
 const insightBulletSchema = z.object({
   title: z.string(),
@@ -90,7 +90,18 @@ export async function updateLandingSettingsAction(
 
   try {
     const db = getDb();
-    const content: LandingContent = parsed.data;
+    const [existing] = await db
+      .select({ content: landingSettingsTable.content })
+      .from(landingSettingsTable)
+      .where(eq(landingSettingsTable.id, "default"))
+      .limit(1);
+
+    const existingContent =
+      (existing?.content as SiteContent | null | undefined) ?? undefined;
+    const content: SiteContent = {
+      ...(existingContent ?? {}),
+      ...(parsed.data as LandingContent),
+    };
 
     await db
       .insert(landingSettingsTable)

@@ -19,9 +19,27 @@ export type LandingContent = {
   }>;
 };
 
+export type AboutContent = {
+  eyebrow: string;
+  title: string;
+  intro: string;
+  missionTitle: string;
+  missionBody: string;
+  methodologyTitle: string;
+  methodologyBody: string;
+  audienceTitle: string;
+  audienceBody: string;
+  contactLabel: string;
+  contactEmail: string;
+};
+
+export type SiteContent = Partial<LandingContent> & {
+  about?: AboutContent;
+};
+
 export const landingSettingsTable = pgTable("landing_settings", {
   id: text("id").primaryKey().default("default"),
-  content: jsonb("content").$type<LandingContent>(),
+  content: jsonb("content").$type<SiteContent>(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .default(sql`now()`),
