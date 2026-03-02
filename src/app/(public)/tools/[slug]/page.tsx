@@ -14,6 +14,9 @@ type ToolDetailPageProps = {
 
 // Regex to extract question code from column header
 const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
+const LONG_FORM_VALUE_LENGTH = 120;
+const LONG_FORM_SUPPORTIVE_TEXT_LENGTH = 140;
+const LONG_FORM_TOTAL_CONTENT_LENGTH = 190;
 
 function extractQuestionCode(header: string): string | null {
   const match = header.match(QUESTION_CODE_REGEX);
@@ -47,11 +50,18 @@ function normalizeFieldValue(value: unknown): string {
 
 function shouldUseLongForm(
   value: string,
+  supportiveText: string | null,
   items: string[],
   isMultipleChoice: boolean,
 ): boolean {
   if (!value) return false;
-  if (value.length > 180) return true;
+
+  const normalizedSupportiveText = normalizeFieldValue(supportiveText);
+
+  if (value.length > LONG_FORM_VALUE_LENGTH) return true;
+  if (normalizedSupportiveText.length > LONG_FORM_SUPPORTIVE_TEXT_LENGTH) return true;
+  if (value.length + normalizedSupportiveText.length > LONG_FORM_TOTAL_CONTENT_LENGTH)
+    return true;
   if (items.length >= 3) return true;
   if (isMultipleChoice && items.length >= 2) return true;
   if (items.length >= 2 && value.length > 120) return true;
@@ -122,6 +132,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
     if (!normalizedValue) continue;
 
     const isMultipleChoice = question?.isMultipleChoice === true;
+    const supportiveText = normalizeFieldValue(question?.supportiveText ?? null);
     const semicolonItems = normalizedValue.includes(";")
       ? parseMultipleChoiceValue(normalizedValue)
       : [];
@@ -129,10 +140,15 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
     detailEntries.push({
       id: key,
       label,
-      supportiveText: question?.supportiveText ?? null,
+      supportiveText: supportiveText || null,
       value: normalizedValue,
       items: semicolonItems,
-      isLongForm: shouldUseLongForm(normalizedValue, semicolonItems, isMultipleChoice),
+      isLongForm: shouldUseLongForm(
+        normalizedValue,
+        supportiveText || null,
+        semicolonItems,
+        isMultipleChoice,
+      ),
     });
   }
 
