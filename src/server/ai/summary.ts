@@ -13,6 +13,7 @@ const DISABLED_KEYS = new Set(
 
 const gatewayKey = env.AI_GATEWAY_API_KEY.trim();
 const isAiGatewayEnabled = !DISABLED_KEYS.has(gatewayKey.toLowerCase());
+const AI_REQUEST_TIMEOUT_MS = 30000;
 
 const openai = isAiGatewayEnabled
   ? createOpenAI({
@@ -20,6 +21,29 @@ const openai = isAiGatewayEnabled
       baseURL: env.AI_GATEWAY_BASE_URL,
     })
   : null;
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string,
+): Promise<T> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new Error(timeoutMessage));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+}
 
 export async function generateToolSummary(
   toolName: string,
@@ -48,12 +72,16 @@ export async function generateToolSummary(
   ].join("\n");
 
   try {
-    const { text } = await generateText({
-      model: openai(env.AI_MODEL),
-      prompt,
-      temperature: 0.3,
-      maxTokens: 150,
-    });
+    const { text } = await withTimeout(
+      generateText({
+        model: openai(env.AI_MODEL),
+        prompt,
+        temperature: 0.3,
+        maxTokens: 150,
+      }),
+      AI_REQUEST_TIMEOUT_MS,
+      `Tool summary generation timed out after ${AI_REQUEST_TIMEOUT_MS / 1000} seconds`,
+    );
     return text;
   } catch (error) {
     logger.error({ error }, "Failed to generate tool summary");
@@ -76,22 +104,16 @@ export async function buildComparisonSummary(
   }
 
   try {
-    // Add timeout to prevent hanging workers
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error("AI summary generation timed out after 30 seconds"));
-      }, 30000);
-    });
-
-    const result = await Promise.race([
+    const result = await withTimeout(
       generateText({
         model: openai(env.AI_MODEL),
         prompt: `${prompt}\n\nTools:\n${tools
           .map((tool) => `- ${tool.name}: ${tool.summary}`)
           .join("\n")}`,
       }),
-      timeoutPromise,
-    ]);
+      AI_REQUEST_TIMEOUT_MS,
+      `AI summary generation timed out after ${AI_REQUEST_TIMEOUT_MS / 1000} seconds`,
+    );
 
     return result.text;
   } catch (error) {

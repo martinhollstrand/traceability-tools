@@ -1,10 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-import { useState, useCallback, type DragEvent } from "react";
+import { useState, useCallback, useMemo, type DragEvent, type FormEvent } from "react";
 import * as XLSX from "xlsx";
-import { uploadExcelAction, type UploadExcelState } from "@/server/actions/tool-versions";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
@@ -21,10 +18,41 @@ function isAcceptedFile(file: File): boolean {
   return ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
 }
 
-const initialState: UploadExcelState = { success: false };
+type ImportProgress = {
+  stage:
+    | "preparing"
+    | "questions"
+    | "rows"
+    | "archiving"
+    | "finalizing"
+    | "completed"
+    | "failed";
+  message: string;
+  versionId?: string;
+  totalRows?: number;
+  processedRows?: number;
+  createdCount?: number;
+  updatedCount?: number;
+  skippedCount?: number;
+  aiGeneratedCount?: number;
+};
+
+type ImportResult = {
+  versionId: string;
+  totalRows: number;
+  createdCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  questionsCount: number;
+  aiGeneratedCount: number;
+};
+
+type ImportStreamEvent =
+  | { type: "progress"; progress: ImportProgress }
+  | { type: "complete"; result: ImportResult }
+  | { type: "error"; message: string };
 
 export function ExcelUpload() {
-  const [state, formAction] = useActionState(uploadExcelAction, initialState);
   const [fileName, setFileName] = useState("");
   const [rowCount, setRowCount] = useState(0);
   const [columns, setColumns] = useState<string[]>([]);
@@ -32,6 +60,28 @@ export function ExcelUpload() {
   const [regenerateAi, setRegenerateAi] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragError, setDragError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [progress, setProgress] = useState<ImportProgress | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [verboseLog, setVerboseLog] = useState<string[]>([]);
+
+  const addVerboseLog = useCallback((message: string) => {
+    const timestamp = new Date().toLocaleTimeString("sv-SE", { hour12: false });
+    setVerboseLog((prev) => [...prev, `[${timestamp}] ${message}`].slice(-250));
+  }, []);
+
+  const progressPercent = useMemo(() => {
+    if (progress?.totalRows && progress.totalRows > 0) {
+      const processedRows = Math.min(progress.processedRows ?? 0, progress.totalRows);
+      return Math.round((processedRows / progress.totalRows) * 100);
+    }
+
+    if (submitSuccess) return 100;
+    if (isSubmitting) return 5;
+    return 0;
+  }, [isSubmitting, progress, submitSuccess]);
 
   const handleFileChange = useCallback(async (file: File) => {
     setFileName(file.name);
@@ -94,6 +144,123 @@ export function ExcelUpload() {
     [handleFileChange],
   );
 
+  const handleSubmit = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+
+      setSubmitError("");
+      setSubmitSuccess(false);
+      setProgress(null);
+      setResult(null);
+      setVerboseLog([]);
+      setIsSubmitting(true);
+      addVerboseLog("Importen skickades. Väntar på status från servern...");
+
+      try {
+        const response = await fetch("/api/admin/imports/stream", {
+          method: "POST",
+          body: new FormData(event.currentTarget),
+        });
+
+        if (!response.ok) {
+          let errorMessage = "Kunde inte starta importen";
+          try {
+            const payload = (await response.json()) as { error?: string };
+            if (payload.error) {
+              errorMessage = payload.error;
+            }
+          } catch {
+            // Ignore malformed error payloads and use fallback message.
+          }
+
+          setSubmitError(errorMessage);
+          addVerboseLog(`Fel vid start: ${errorMessage}`);
+          return;
+        }
+
+        if (!response.body) {
+          const noStreamError = "Servern returnerade ingen progress-ström";
+          setSubmitError(noStreamError);
+          addVerboseLog(noStreamError);
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let completed = false;
+        let hasError = false;
+
+        const applyEvent = (rawLine: string) => {
+          const line = rawLine.trim();
+          if (!line) return;
+
+          try {
+            const eventData = JSON.parse(line) as ImportStreamEvent;
+
+            if (eventData.type === "progress") {
+              setProgress(eventData.progress);
+              addVerboseLog(eventData.progress.message);
+              return;
+            }
+
+            if (eventData.type === "complete") {
+              completed = true;
+              setSubmitSuccess(true);
+              setResult(eventData.result);
+              addVerboseLog(
+                `Import klar: ${eventData.result.updatedCount} uppdaterade, ${eventData.result.createdCount} skapade, ${eventData.result.skippedCount} hoppade.`,
+              );
+              return;
+            }
+
+            if (eventData.type === "error") {
+              hasError = true;
+              setSubmitError(eventData.message);
+              addVerboseLog(`Importfel: ${eventData.message}`);
+            }
+          } catch {
+            addVerboseLog(`Kunde inte tolka servermeddelande: ${line}`);
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            applyEvent(line);
+          }
+        }
+
+        if (buffer.trim()) {
+          applyEvent(buffer);
+        }
+
+        if (!completed && !hasError) {
+          hasError = true;
+          setSubmitError(
+            "Importströmmen avslutades innan klart svar mottogs. Kontrollera versionslistan.",
+          );
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Kunde inte ansluta till importtjänsten";
+        setSubmitError(message);
+        addVerboseLog(`Nätverksfel: ${message}`);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [addVerboseLog],
+  );
+
   return (
     <Card className="w-full max-w-full min-w-0 space-y-4 overflow-hidden">
       <div className="space-y-2">
@@ -105,7 +272,7 @@ export function ExcelUpload() {
           automatiskt.
         </Text>
       </div>
-      <form action={formAction} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <label
           className={cn(
             "flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center text-sm transition-colors",
@@ -169,15 +336,64 @@ export function ExcelUpload() {
             Regenerate AI summaries for existing tools
           </label>
         </div>
+        {regenerateAi && rowCount > 50 && (
+          <p className="text-xs text-amber-700">
+            AI-generering för {rowCount} rader kan överskrida tidsgränser i serverless. Om
+            det blir timeout: kör först import utan AI och regenerera i mindre batchar.
+          </p>
+        )}
 
-        <SubmitButton disabled={!fileName} />
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-        {state.success && (
+        <SubmitButton disabled={!fileName} pending={isSubmitting} />
+        {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+        {submitSuccess && (
           <p className="text-sm text-green-600">
-            Import sparad. Uppdatera sidan för att se versionen.
+            Import sparad. {result ? `${result.totalRows} rader bearbetade.` : ""}{" "}
+            Uppdatera sidan för att se den nya versionen.
           </p>
         )}
       </form>
+      {(isSubmitting || verboseLog.length > 0 || submitSuccess || submitError) && (
+        <div className="space-y-3 rounded-2xl border border-[hsl(var(--border))] p-4">
+          <div className="flex items-center justify-between text-xs font-semibold text-[hsl(var(--muted))]">
+            <span>{progress?.message ?? "Importlogg"}</span>
+            <span>{progressPercent}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-[hsl(var(--muted))]/40">
+            <div
+              className="h-full rounded-full bg-[hsl(var(--foreground))] transition-[width] duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[hsl(var(--muted))]">
+            <span>
+              Rader: {progress?.processedRows ?? result?.totalRows ?? 0} /{" "}
+              {progress?.totalRows ?? result?.totalRows ?? rowCount}
+            </span>
+            <span>Skapade: {progress?.createdCount ?? result?.createdCount ?? 0}</span>
+            <span>
+              Uppdaterade: {progress?.updatedCount ?? result?.updatedCount ?? 0}
+            </span>
+            <span>Hoppade: {progress?.skippedCount ?? result?.skippedCount ?? 0}</span>
+            <span>
+              AI summeringar:{" "}
+              {progress?.aiGeneratedCount ?? result?.aiGeneratedCount ?? 0}
+            </span>
+          </div>
+          <div className="max-h-56 overflow-y-auto rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/20 p-3 font-mono text-xs text-[hsl(var(--foreground))]">
+            {verboseLog.length === 0 ? (
+              <p className="text-[hsl(var(--muted))]">
+                Väntar på första statusmeddelandet...
+              </p>
+            ) : (
+              verboseLog.map((line, idx) => (
+                <p key={`${idx}-${line}`} className="whitespace-pre-wrap">
+                  {line}
+                </p>
+              ))
+            )}
+          </div>
+        </div>
+      )}
       {previewRows.length > 0 && (
         <div className="w-full max-w-full min-w-0 overflow-x-auto">
           <table className="w-max min-w-full table-auto text-left text-sm">
@@ -214,8 +430,7 @@ export function ExcelUpload() {
   );
 }
 
-function SubmitButton({ disabled }: { disabled: boolean }) {
-  const { pending } = useFormStatus();
+function SubmitButton({ disabled, pending }: { disabled: boolean; pending: boolean }) {
   return (
     <button
       type="submit"
