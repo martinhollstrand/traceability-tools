@@ -1,4 +1,24 @@
 @import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+@theme {
+  --color-white: #ffffff;
+
+  --color-green-600: #16a34a;
+
+  --color-red-600: #dc2626;
+
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+  --color-amber-950: #451a03;
+}
 
 :root,
 :root[data-theme="light"] {

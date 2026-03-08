@@ -8,6 +8,7 @@ const ADMIN_NAV = [
   { label: "About", href: "/admin/about" },
   { label: "Data imports", href: "/admin/imports" },
   { label: "Questions", href: "/admin/questions" },
+  { label: "AI Summaries", href: "/admin/summaries" },
   { label: "Reports", href: "/admin/reports" },
 ];
 
