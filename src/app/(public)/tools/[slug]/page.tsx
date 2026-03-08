@@ -6,7 +6,11 @@ import { AutoLinkedText } from "@/components/ui/auto-linked-text";
 import { AI_SUMMARY_SOURCE_NOTE } from "@/lib/constants";
 import { getToolBySlug } from "@/server/data/tools";
 import { getSurveyQuestions } from "@/server/actions/survey-questions";
-import { getToolFieldsFromMappings } from "@/server/data/tool-fields";
+import {
+  getToolFieldsFromMappings,
+  PRIMARY_CATEGORY_QUESTION_CODE,
+  SECONDARY_CATEGORY_QUESTION_CODE,
+} from "@/server/data/tool-fields";
 
 type ToolDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -86,6 +90,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
       vendor: tool.vendor,
       website: tool.website,
       category: tool.category,
+      secondaryCategory: tool.secondaryCategory,
       rawData: (tool.rawData as Record<string, unknown>) ?? {},
     },
     questions,
@@ -108,6 +113,12 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
 
   const detailEntries: DetailEntry[] = [];
 
+  // Codes for category fields that are excluded from comparisonData as metadata
+  const CATEGORY_CODES = new Set([
+    PRIMARY_CATEGORY_QUESTION_CODE,
+    SECONDARY_CATEGORY_QUESTION_CODE,
+  ]);
+
   if (toolFields.vendor) {
     const vendorValue = normalizeFieldValue(toolFields.vendor);
     if (vendorValue) {
@@ -121,8 +132,36 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
     }
   }
 
+  // Category entries are metadata and excluded from comparisonData during import,
+  // so we add them explicitly here as pinned quick facts.
+  const categoryFields: { code: string; value: string | null }[] = [
+    { code: PRIMARY_CATEGORY_QUESTION_CODE, value: toolFields.category },
+    { code: SECONDARY_CATEGORY_QUESTION_CODE, value: toolFields.secondaryCategory },
+  ];
+  for (const { code, value } of categoryFields) {
+    const normalizedValue = normalizeFieldValue(value);
+    if (!normalizedValue) continue;
+    const question = questionsByCode.get(code);
+    const label =
+      question?.questionText ??
+      (code === PRIMARY_CATEGORY_QUESTION_CODE
+        ? "Tool category (primary focus)"
+        : "Tool category (secondary focus)");
+    detailEntries.push({
+      id: `category-${code}`,
+      label,
+      value: normalizedValue,
+      items: normalizedValue.includes(";")
+        ? parseMultipleChoiceValue(normalizedValue)
+        : [],
+      isLongForm: false,
+    });
+  }
+
   for (const [key, value] of comparisonEntries) {
     const code = extractQuestionCode(key);
+    if (code && CATEGORY_CODES.has(code)) continue;
+
     const question = code ? questionsByCode.get(code) : null;
     const label = question?.questionText ?? key.replace(QUESTION_CODE_REGEX, "").trim();
 
@@ -152,8 +191,8 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
     });
   }
 
-  const compactEntries = detailEntries.filter((entry) => !entry.isLongForm);
-  const longFormEntries = detailEntries.filter((entry) => entry.isLongForm);
+  const compactEntries = detailEntries.filter((e) => !e.isLongForm);
+  const longFormEntries = detailEntries.filter((e) => e.isLongForm);
 
   return (
     <div className="py-8 md:py-10">

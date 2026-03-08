@@ -4,8 +4,8 @@ import type { SurveyQuestion, MappedField } from "@/server/actions/survey-questi
 
 // Regex to extract question code from column header
 const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
-const PRIMARY_CATEGORY_QUESTION_CODE = "004";
-const SECONDARY_CATEGORY_QUESTION_CODE = "005";
+export const PRIMARY_CATEGORY_QUESTION_CODE = "004";
+export const SECONDARY_CATEGORY_QUESTION_CODE = "005";
 
 function normalizeRawValue(value: unknown): string | null {
   if (value === undefined || value === null) return null;
