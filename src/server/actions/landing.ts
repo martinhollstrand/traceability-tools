@@ -119,6 +119,7 @@ export async function updateLandingSettingsAction(
       });
 
     revalidatePath("/");
+    revalidatePath("/main");
     revalidatePath("/admin/landing");
     return { success: true };
   } catch (error) {
