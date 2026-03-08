@@ -215,7 +215,7 @@ export function ComparisonGrid({ tools, questions = [] }: ComparisonGridProps) {
     render: (tool: Tool) => ReactNode;
   }> = [
     {
-      label: "Description",
+      label: "Vendor",
       render: (tool) =>
         tool.vendor ? <span className="text-sm">{tool.vendor}</span> : "—",
     },
