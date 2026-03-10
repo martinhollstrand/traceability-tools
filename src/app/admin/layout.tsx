@@ -7,6 +7,7 @@ const ADMIN_NAV = [
   { label: "Landing", href: "/admin/landing" },
   { label: "About", href: "/admin/about" },
   { label: "Data imports", href: "/admin/imports" },
+  { label: "Categories", href: "/admin/categories" },
   { label: "Questions", href: "/admin/questions" },
   { label: "AI Summaries", href: "/admin/summaries" },
   { label: "Reports", href: "/admin/reports" },

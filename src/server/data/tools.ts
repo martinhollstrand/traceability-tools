@@ -8,37 +8,10 @@ import { revalidatePath } from "next/cache";
 import type { Tool } from "@/lib/validators/tool";
 import type { ReportMetadata } from "@/lib/validators/report";
 import { normalizeReportKeyFindings } from "@/lib/report-key-findings";
-
-/** Question codes used for category handling in raw import data. */
-const QUESTION_CODE_PRIMARY_CATEGORY = "004";
-const QUESTION_CODE_SECONDARY_CATEGORY = "005";
-// Only use the dedicated category metadata fields for the /tools filters.
-const CATEGORY_FILTER_QUESTION_CODES = [
-  QUESTION_CODE_PRIMARY_CATEGORY,
-  QUESTION_CODE_SECONDARY_CATEGORY,
-] as const;
-const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
-
-function getValueForQuestionCode(
-  comparisonData: Record<string, unknown> | null,
-  code: string,
-): string | null {
-  if (!comparisonData) return null;
-  for (const [key, value] of Object.entries(comparisonData)) {
-    const match = key.match(QUESTION_CODE_REGEX);
-    if (match?.[1] === code && value !== undefined && value !== null && value !== "") {
-      return String(value).trim();
-    }
-  }
-  return null;
-}
-
-function splitCategoryValues(value: string): string[] {
-  return value
-    .split(/[;,]/)
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-}
+import {
+  CATEGORY_FILTER_QUESTION_CODES,
+  getSearchFilterCategories,
+} from "@/server/data/tool-categories";
 
 type SortOption = "name" | "category" | "updated";
 
@@ -148,27 +121,10 @@ export const getComparisonDataset = cache(async (ids: string[]): Promise<Tool[]>
   return rows.map(mapToolRow);
 });
 
-/** Returns distinct values from question 004/005 for category filters. */
-export const getAvailableCategories = cache(async (): Promise<string[]> => {
-  const rows = await db
-    .select({ rawData: toolsTable.rawData })
-    .from(toolsTable)
-    .where(eq(toolsTable.status, "published"));
-
-  const categorySet = new Set<string>();
-  for (const row of rows) {
-    const rawData = (row.rawData as Record<string, unknown>) ?? null;
-    for (const questionCode of CATEGORY_FILTER_QUESTION_CODES) {
-      const value = getValueForQuestionCode(rawData, questionCode);
-      if (!value) continue;
-      for (const category of splitCategoryValues(value)) {
-        categorySet.add(category);
-      }
-    }
-  }
-
-  return Array.from(categorySet).sort();
-});
+/** Returns admin-enabled values from the category metadata questions. */
+export async function getAvailableCategories(): Promise<string[]> {
+  return getSearchFilterCategories();
+}
 
 export async function revalidateToolsTag(ids?: string[]) {
   revalidatePath("/tools");

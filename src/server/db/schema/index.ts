@@ -18,6 +18,10 @@ export {
   landingSettingsTable as landingSettings,
   landingSettingsTable,
 } from "./landing-settings";
+export {
+  toolCategoriesTable as toolCategories,
+  toolCategoriesTable,
+} from "./tool-categories";
 
 // Re-export relations
 export * from "./relations";
