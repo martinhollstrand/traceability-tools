@@ -1,5 +1,5 @@
-import { MainLanding } from "@/components/landing/main-landing";
+import { permanentRedirect } from "next/navigation";
 
 export default function MainLandingPage() {
-  return <MainLanding />;
+  permanentRedirect("/");
 }

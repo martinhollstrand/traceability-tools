@@ -119,7 +119,6 @@ export async function updateLandingSettingsAction(
       });
 
     revalidatePath("/");
-    revalidatePath("/main");
     revalidatePath("/admin/landing");
     return { success: true };
   } catch (error) {
@@ -144,7 +143,6 @@ export async function setToolFeaturedAction(
     .where(eq(toolsTable.id, toolId));
 
   revalidatePath("/");
-  revalidatePath("/main");
   revalidatePath("/admin/landing");
   revalidatePath("/admin");
   revalidatePath("/tools");

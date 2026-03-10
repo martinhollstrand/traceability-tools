@@ -48,7 +48,7 @@ export async function regenerateToolSummaryAction(
     .where(eq(toolsTable.id, toolId));
 
   revalidatePath("/tools");
-  revalidatePath("/main");
+  revalidatePath("/");
   revalidatePath("/compare");
   return { success: true, summary };
 }
@@ -135,7 +135,7 @@ export async function regenerateMissingSummariesAction(): Promise<{
   }
 
   revalidatePath("/tools");
-  revalidatePath("/main");
+  revalidatePath("/");
   revalidatePath("/compare");
 
   return { generated, failed, total: rows.length };

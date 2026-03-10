@@ -872,7 +872,7 @@ export async function runToolVersionImport(
     revalidatePath("/admin/versions");
     revalidatePath("/tools");
     revalidatePath("/compare");
-    revalidatePath("/main");
+    revalidatePath("/");
     revalidatePath("/admin/questions");
 
     const result: ToolImportResult = {

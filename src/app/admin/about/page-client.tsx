@@ -62,8 +62,8 @@ export function AboutPageClient({ initialSettings }: AboutPageClientProps) {
       <CardHeader>
         <CardTitle>About page content</CardTitle>
         <p className="text-muted-foreground text-sm">
-          Control the texts shown on the public about page. Partner logos are reused from
-          the pre-launch footer automatically.
+          Control the texts shown on the public about page. Partner logos are reused
+          automatically from the shared branding component.
         </p>
       </CardHeader>
       <CardContent>
