@@ -113,7 +113,7 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
 
   const detailEntries: DetailEntry[] = [];
 
-  // Codes for category fields that are excluded from comparisonData as metadata
+  // Category fields are shown in the header and excluded from comparisonData.
   const CATEGORY_CODES = new Set([
     PRIMARY_CATEGORY_QUESTION_CODE,
     SECONDARY_CATEGORY_QUESTION_CODE,
@@ -130,32 +130,6 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
         isLongForm: false,
       });
     }
-  }
-
-  // Category entries are metadata and excluded from comparisonData during import,
-  // so we add them explicitly here as pinned quick facts.
-  const categoryFields: { code: string; value: string | null }[] = [
-    { code: PRIMARY_CATEGORY_QUESTION_CODE, value: toolFields.category },
-    { code: SECONDARY_CATEGORY_QUESTION_CODE, value: toolFields.secondaryCategory },
-  ];
-  for (const { code, value } of categoryFields) {
-    const normalizedValue = normalizeFieldValue(value);
-    if (!normalizedValue) continue;
-    const question = questionsByCode.get(code);
-    const label =
-      question?.questionText ??
-      (code === PRIMARY_CATEGORY_QUESTION_CODE
-        ? "Tool category (primary focus)"
-        : "Tool category (secondary focus)");
-    detailEntries.push({
-      id: `category-${code}`,
-      label,
-      value: normalizedValue,
-      items: normalizedValue.includes(";")
-        ? parseMultipleChoiceValue(normalizedValue)
-        : [],
-      isLongForm: false,
-    });
   }
 
   for (const [key, value] of comparisonEntries) {
@@ -200,6 +174,9 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
         <header className="space-y-2">
           <p className="text-muted-foreground text-sm font-medium">
             {toolFields.category ?? "Uncategorized"}
+          </p>
+          <p className="text-muted-foreground text-sm font-medium">
+            {toolFields.secondaryCategory && `${toolFields.secondaryCategory}`}
           </p>
           <h1 className="text-foreground text-3xl font-semibold md:text-4xl">
             {toolFields.name}
