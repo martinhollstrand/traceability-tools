@@ -12,11 +12,10 @@ import { normalizeReportKeyFindings } from "@/lib/report-key-findings";
 /** Question codes used for category handling in raw import data. */
 const QUESTION_CODE_PRIMARY_CATEGORY = "004";
 const QUESTION_CODE_SECONDARY_CATEGORY = "005";
-const QUESTION_CODE_CATEGORIES = [
+// Only use the dedicated category metadata fields for the /tools filters.
+const CATEGORY_FILTER_QUESTION_CODES = [
   QUESTION_CODE_PRIMARY_CATEGORY,
   QUESTION_CODE_SECONDARY_CATEGORY,
-  "019",
-  "020",
 ] as const;
 const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
 
@@ -80,11 +79,11 @@ export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]
   }
 
   if (categories?.length) {
-    // Filter by question 004/005 values in raw_data.
+    // Filter by the dedicated category metadata values in raw_data.
     // When multiple categories are selected, apply AND semantics to narrow results.
     const normalizedCategories = categories.map((c) => c.trim()).filter(Boolean);
     if (normalizedCategories.length > 0) {
-      const categoryPattern = `\\[(?:${QUESTION_CODE_CATEGORIES.join("|")})\\]\\s*$`;
+      const categoryPattern = `\\[(?:${CATEGORY_FILTER_QUESTION_CODES.join("|")})\\]\\s*$`;
       const categoryClauses = normalizedCategories.map(
         (category) => sql`EXISTS (
           SELECT 1
@@ -159,7 +158,7 @@ export const getAvailableCategories = cache(async (): Promise<string[]> => {
   const categorySet = new Set<string>();
   for (const row of rows) {
     const rawData = (row.rawData as Record<string, unknown>) ?? null;
-    for (const questionCode of QUESTION_CODE_CATEGORIES) {
+    for (const questionCode of CATEGORY_FILTER_QUESTION_CODES) {
       const value = getValueForQuestionCode(rawData, questionCode);
       if (!value) continue;
       for (const category of splitCategoryValues(value)) {
