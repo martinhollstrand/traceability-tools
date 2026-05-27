@@ -18,7 +18,9 @@ export function ReportSections({ report }: ReportSectionsProps) {
           </CardHeader>
           {highlight.detail ? (
             <CardContent>
-              <p className="text-muted-foreground text-sm">{highlight.detail}</p>
+              <p className="text-muted-foreground text-sm whitespace-pre-line">
+                {highlight.detail}
+              </p>
             </CardContent>
           ) : null}
         </Card>

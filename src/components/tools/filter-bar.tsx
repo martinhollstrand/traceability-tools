@@ -6,17 +6,27 @@ import { ChevronDown, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { OTHER_CATEGORY_FILTER_VALUE } from "@/lib/category-filter";
+
+const OTHER_CATEGORY_LABEL = "Other";
 
 type FilterBarProps = {
   defaultQuery?: string;
   defaultCategories?: string[];
   availableCategories?: string[];
+  /** Number of single-use categories bundled into the "Other" filter, if any. */
+  otherCategoryCount?: number;
 };
+
+function getCategoryDisplayName(value: string): string {
+  return value === OTHER_CATEGORY_FILTER_VALUE ? OTHER_CATEGORY_LABEL : value;
+}
 
 export function FilterBar({
   defaultQuery = "",
   defaultCategories = [],
   availableCategories = [],
+  otherCategoryCount = 0,
 }: FilterBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -70,11 +80,27 @@ export function FilterBar({
     router.push("/tools");
   }
 
-  const filteredCategories = React.useMemo(() => {
+  type CategoryOption = { value: string; label: string };
+
+  const allCategoryOptions = React.useMemo<CategoryOption[]>(() => {
+    const options: CategoryOption[] = availableCategories.map((value) => ({
+      value,
+      label: value,
+    }));
+    if (otherCategoryCount > 0) {
+      options.push({
+        value: OTHER_CATEGORY_FILTER_VALUE,
+        label: `${OTHER_CATEGORY_LABEL} (${otherCategoryCount})`,
+      });
+    }
+    return options;
+  }, [availableCategories, otherCategoryCount]);
+
+  const filteredCategoryOptions = React.useMemo<CategoryOption[]>(() => {
     const q = categoryFilter.trim().toLowerCase();
-    if (!q) return availableCategories;
-    return availableCategories.filter((category) => category.toLowerCase().includes(q));
-  }, [availableCategories, categoryFilter]);
+    if (!q) return allCategoryOptions;
+    return allCategoryOptions.filter((option) => option.label.toLowerCase().includes(q));
+  }, [allCategoryOptions, categoryFilter]);
 
   return (
     <form
@@ -142,7 +168,9 @@ export function FilterBar({
                 key={category}
                 className="border-border/70 inline-flex items-center gap-1.5 rounded-full border bg-[hsl(var(--surface-strong))]/70 px-2.5 py-0.5 text-[11px]"
               >
-                <span className="max-w-[160px] truncate">{category}</span>
+                <span className="max-w-[160px] truncate">
+                  {getCategoryDisplayName(category)}
+                </span>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -152,7 +180,7 @@ export function FilterBar({
                     updateUrl(query, next);
                   }}
                   className="text-muted-foreground hover:text-foreground cursor-pointer rounded-full p-0.5"
-                  aria-label={`Remove category ${category}`}
+                  aria-label={`Remove category ${getCategoryDisplayName(category)}`}
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -170,7 +198,9 @@ export function FilterBar({
                     key={category}
                     className="border-border/70 inline-flex items-center gap-1.5 rounded-full border bg-[hsl(var(--surface-strong))]/70 px-2.5 py-0.5 text-[11px]"
                   >
-                    <span className="max-w-[160px] truncate">{category}</span>
+                    <span className="max-w-[160px] truncate">
+                      {getCategoryDisplayName(category)}
+                    </span>
                     <button
                       type="button"
                       onClick={() => {
@@ -179,7 +209,7 @@ export function FilterBar({
                         updateUrl(query, next);
                       }}
                       className="text-muted-foreground hover:text-foreground cursor-pointer rounded-full p-0.5"
-                      aria-label={`Remove category ${category}`}
+                      aria-label={`Remove category ${getCategoryDisplayName(category)}`}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -188,7 +218,7 @@ export function FilterBar({
               </div>
             )}
 
-            {availableCategories.length > 8 && (
+            {allCategoryOptions.length > 8 && (
               <div className="flex items-center gap-2">
                 <Search className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
                 <Input
@@ -201,32 +231,40 @@ export function FilterBar({
             )}
 
             <div className="border-border/60 max-h-[260px] space-y-0.5 overflow-y-auto overscroll-contain rounded-2xl border bg-[hsl(var(--background))] p-1.5">
-              {filteredCategories.length === 0 ? (
+              {filteredCategoryOptions.length === 0 ? (
                 <p className="text-muted-foreground px-2 py-3 text-center text-xs">
                   No categories match &quot;{categoryFilter.trim()}&quot;.
                 </p>
               ) : (
-                filteredCategories.map((category) => {
-                  const active = categories.includes(category);
+                filteredCategoryOptions.map((option) => {
+                  const active = categories.includes(option.value);
+                  const isOther = option.value === OTHER_CATEGORY_FILTER_VALUE;
                   return (
                     <label
-                      key={category}
+                      key={option.value}
                       className={cn(
                         "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-[hsl(var(--surface-strong))]/70",
                         active && "bg-primary/5",
+                        isOther &&
+                          "border-border/60 mt-1 border-t pt-2 text-[hsl(var(--muted))]",
                       )}
+                      title={
+                        isOther
+                          ? "Includes every category that only one tool selected."
+                          : undefined
+                      }
                     >
                       <input
                         type="checkbox"
                         checked={active}
                         onChange={() => {
-                          const next = toggle(categories, category);
+                          const next = toggle(categories, option.value);
                           setCategories(next);
                           updateUrl(query, next);
                         }}
                         className="h-3.5 w-3.5 cursor-pointer"
                       />
-                      <span className="flex-1 text-[13px]">{category}</span>
+                      <span className="flex-1 text-[13px]">{option.label}</span>
                     </label>
                   );
                 })

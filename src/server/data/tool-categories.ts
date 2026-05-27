@@ -8,6 +8,8 @@ import {
   SECONDARY_CATEGORY_QUESTION_CODE,
 } from "@/server/data/tool-fields";
 
+export { OTHER_CATEGORY_FILTER_VALUE } from "@/lib/category-filter";
+
 const QUESTION_CODE_REGEX = /\[(\d{3})\]\s*$/;
 
 export const CATEGORY_FILTER_QUESTION_CODES = [
@@ -22,6 +24,16 @@ export type ToolCategorySetting = {
   usageCount: number;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type CategoryFilterGroups = {
+  /** Visible multi-use categories shown as individual filter options. */
+  visible: string[];
+  /**
+   * Visible single-use category names bundled under the "Other" filter.
+   * Empty when there are no single-use categories to bundle.
+   */
+  otherNames: string[];
 };
 
 function getValueForQuestionCode(
@@ -118,11 +130,7 @@ export async function listToolCategorySettings(): Promise<ToolCategorySetting[]>
   }));
 }
 
-export async function getSearchFilterCategories(): Promise<string[]> {
-  const usageCounts = await collectPublishedCategoryUsage();
-  const currentCategoryNames = Array.from(usageCounts.keys());
-  if (currentCategoryNames.length === 0) return [];
-
+async function getHiddenCategoryNames(): Promise<Set<string>> {
   const rows = await db
     .select({
       name: toolCategoriesTable.name,
@@ -130,11 +138,39 @@ export async function getSearchFilterCategories(): Promise<string[]> {
     })
     .from(toolCategoriesTable);
 
-  const hiddenCategoryNames = new Set(
-    rows.filter((row) => !row.showInSearchFilter).map((row) => row.name),
-  );
+  return new Set(rows.filter((row) => !row.showInSearchFilter).map((row) => row.name));
+}
 
-  return currentCategoryNames
-    .filter((name) => !hiddenCategoryNames.has(name))
-    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+/**
+ * Returns category filter options, splitting visible categories into the ones
+ * shown individually and the long tail of single-use categories that should
+ * appear bundled under the "Other" filter.
+ */
+export async function getCategoryFilterGroups(): Promise<CategoryFilterGroups> {
+  const usageCounts = await collectPublishedCategoryUsage();
+  const allNames = Array.from(usageCounts.keys());
+  if (allNames.length === 0) return { visible: [], otherNames: [] };
+
+  const hiddenCategoryNames = await getHiddenCategoryNames();
+
+  const visible: string[] = [];
+  const otherNames: string[] = [];
+
+  for (const name of allNames) {
+    if (hiddenCategoryNames.has(name)) continue;
+    const usageCount = usageCounts.get(name) ?? 0;
+    if (usageCount <= 1) {
+      otherNames.push(name);
+    } else {
+      visible.push(name);
+    }
+  }
+
+  const sortAlpha = (a: string, b: string) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" });
+
+  return {
+    visible: visible.sort(sortAlpha),
+    otherNames: otherNames.sort(sortAlpha),
+  };
 }

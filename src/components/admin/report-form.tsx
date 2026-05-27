@@ -2,11 +2,25 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { saveReportAction, type ReportState } from "@/server/actions/report";
 import { type ReportMetadataPayload } from "@/server/data/types";
 import type { ReportKeyFinding } from "@/lib/report-key-findings";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { useFileDropzone } from "@/lib/use-file-dropzone";
+
+const PDF_MAX_BYTES = 10 * 1024 * 1024;
+
+function validatePdfFile(file: File): { ok: true } | { ok: false; error: string } {
+  if (file.type !== "application/pdf") {
+    return { ok: false, error: "File must be a PDF" };
+  }
+  if (file.size > PDF_MAX_BYTES) {
+    return { ok: false, error: "File size must be less than 10MB" };
+  }
+  return { ok: true };
+}
 
 const initialState: ReportState = { success: false };
 
@@ -46,21 +60,33 @@ export function ReportForm({ initial, onSaved }: Props) {
   );
   const isNewReport = !initial.id;
 
+  const acceptPdfFile = useCallback((file: File) => {
+    const validation = validatePdfFile(file);
+    if (!validation.ok) {
+      setUploadError(validation.error);
+      return;
+    }
+    setPdfFile(file);
+    setUploadError(null);
+  }, []);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      if (file.type !== "application/pdf") {
-        setUploadError("File must be a PDF");
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        setUploadError("File size must be less than 10MB");
-        return;
-      }
-      setPdfFile(file);
-      setUploadError(null);
-    }
+    if (file) acceptPdfFile(file);
   };
+
+  const handleDroppedFiles = useCallback(
+    (files: File[]) => {
+      const file = files[0];
+      if (file) acceptPdfFile(file);
+    },
+    [acceptPdfFile],
+  );
+
+  const { isDragging, dropHandlers } = useFileDropzone<HTMLLabelElement>({
+    onFiles: handleDroppedFiles,
+    disabled: uploading,
+  });
 
   const handleUpload = async () => {
     if (!pdfFile) return;
@@ -267,7 +293,15 @@ export function ReportForm({ initial, onSaved }: Props) {
           </label>
           <div className="space-y-2">
             <div className="flex gap-2">
-              <label className="flex flex-1 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[hsl(var(--border))] px-6 py-4 text-center text-sm text-[hsl(var(--muted))] hover:border-[hsl(var(--foreground))]">
+              <label
+                className={cn(
+                  "flex flex-1 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-4 text-center text-sm transition-colors",
+                  isDragging
+                    ? "border-[hsl(var(--foreground))] bg-[hsl(var(--foreground))]/5 text-[hsl(var(--foreground))]"
+                    : "border-[hsl(var(--border))] text-[hsl(var(--muted))] hover:border-[hsl(var(--foreground))]",
+                )}
+                {...dropHandlers}
+              >
                 <input
                   type="file"
                   accept=".pdf"
@@ -278,6 +312,10 @@ export function ReportForm({ initial, onSaved }: Props) {
                 {pdfFile ? (
                   <span className="font-semibold text-[hsl(var(--foreground))]">
                     {pdfFile.name}
+                  </span>
+                ) : isDragging ? (
+                  <span className="font-semibold text-[hsl(var(--foreground))]">
+                    Släpp PDF-filen för att lägga till
                   </span>
                 ) : (
                   <>

@@ -42,7 +42,9 @@ export default async function ReportPage() {
         <p className="text-muted-foreground text-sm tracking-widest">Briefings</p>
         <h1 className="text-3xl font-semibold">{report.title}</h1>
         {reportData.ingress && (
-          <p className="text-muted-foreground text-sm">{reportData.ingress}</p>
+          <p className="text-muted-foreground text-sm whitespace-pre-line">
+            {reportData.ingress}
+          </p>
         )}
       </div>
 

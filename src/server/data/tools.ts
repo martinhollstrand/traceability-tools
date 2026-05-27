@@ -10,7 +10,8 @@ import type { ReportMetadata } from "@/lib/validators/report";
 import { normalizeReportKeyFindings } from "@/lib/report-key-findings";
 import {
   CATEGORY_FILTER_QUESTION_CODES,
-  getSearchFilterCategories,
+  OTHER_CATEGORY_FILTER_VALUE,
+  getCategoryFilterGroups,
 } from "@/server/data/tool-categories";
 
 type SortOption = "name" | "category" | "updated";
@@ -52,24 +53,46 @@ export const listTools = cache(async (filters: ToolFilters = {}): Promise<Tool[]
   }
 
   if (categories?.length) {
-    // Filter by the dedicated category metadata values in raw_data.
-    // When multiple categories are selected, apply AND semantics to narrow results.
-    const normalizedCategories = categories.map((c) => c.trim()).filter(Boolean);
-    if (normalizedCategories.length > 0) {
+    // Each user-selected entry produces a category-match group. Within a
+    // group, any one matching category satisfies the filter (OR). Across
+    // groups, all groups must match (AND) — preserving existing semantics
+    // for individual categories while letting "Other" expand to many names.
+    const normalizedSelections = categories.map((c) => c.trim()).filter(Boolean);
+    const wantsOther = normalizedSelections.includes(OTHER_CATEGORY_FILTER_VALUE);
+    const concreteSelections = normalizedSelections.filter(
+      (category) => category !== OTHER_CATEGORY_FILTER_VALUE,
+    );
+
+    const matchGroups: string[][] = concreteSelections.map((category) => [category]);
+
+    if (wantsOther) {
+      const { otherNames } = await getCategoryFilterGroups();
+      if (otherNames.length === 0) {
+        // "Other" was selected but nothing currently qualifies → match nothing.
+        conditions.push(sql`FALSE`);
+      } else {
+        matchGroups.push(otherNames);
+      }
+    }
+
+    if (matchGroups.length > 0) {
       const categoryPattern = `\\[(?:${CATEGORY_FILTER_QUESTION_CODES.join("|")})\\]\\s*$`;
-      const categoryClauses = normalizedCategories.map(
-        (category) => sql`EXISTS (
+      const groupClauses = matchGroups.map(
+        (group) => sql`EXISTS (
           SELECT 1
           FROM jsonb_each_text(${toolsTable.rawData}) AS _t(_k, _v)
           WHERE _k ~ ${categoryPattern}
             AND EXISTS (
               SELECT 1
               FROM regexp_split_to_table(_v, '\\s*[;,]\\s*') AS _split(item)
-              WHERE lower(trim(item)) = lower(${category})
+              WHERE lower(trim(item)) = ANY (${sql`ARRAY[${sql.join(
+                group.map((value) => sql`${value.toLowerCase()}`),
+                sql`, `,
+              )}]::text[]`})
             )
         )`,
       );
-      conditions.push(sql`${sql.join(categoryClauses, sql` AND `)}`);
+      conditions.push(sql`${sql.join(groupClauses, sql` AND `)}`);
     }
   }
 
@@ -121,9 +144,9 @@ export const getComparisonDataset = cache(async (ids: string[]): Promise<Tool[]>
   return rows.map(mapToolRow);
 });
 
-/** Returns admin-enabled values from the category metadata questions. */
-export async function getAvailableCategories(): Promise<string[]> {
-  return getSearchFilterCategories();
+/** Returns admin-enabled category filter groups for the public tools page. */
+export async function getAvailableCategoryGroups() {
+  return getCategoryFilterGroups();
 }
 
 export async function revalidateToolsTag(ids?: string[]) {

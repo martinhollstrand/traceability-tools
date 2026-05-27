@@ -1,4 +1,4 @@
-import { listTools, getAvailableCategories } from "@/server/data/tools";
+import { listTools, getAvailableCategoryGroups } from "@/server/data/tools";
 import { getSurveyQuestions } from "@/server/actions/survey-questions";
 import { getToolFieldsFromMappings } from "@/server/data/tool-fields";
 import { FilterBar } from "@/components/tools/filter-bar";
@@ -25,13 +25,13 @@ export default async function ToolsPage({
   const categories = params.category ? arrayify(params.category) : [];
   const sortBy = parseSortParam(params.sort);
 
-  const [rawTools, availableCategories, allQuestions] = await Promise.all([
+  const [rawTools, categoryGroups, allQuestions] = await Promise.all([
     listTools({
       query,
       categories,
       sortBy,
     }),
-    getAvailableCategories(),
+    getAvailableCategoryGroups(),
     getSurveyQuestions(),
   ]);
 
@@ -74,7 +74,8 @@ export default async function ToolsPage({
       <FilterBar
         defaultQuery={query}
         defaultCategories={categories}
-        availableCategories={availableCategories}
+        availableCategories={categoryGroups.visible}
+        otherCategoryCount={categoryGroups.otherNames.length}
       />
       <ToolsDirectory
         tools={sortedTools}

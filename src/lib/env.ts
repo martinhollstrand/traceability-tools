@@ -7,7 +7,10 @@ const envSchema = z.object({
   BETTER_AUTH_ADMIN_EMAILS: z.string().optional(),
   AI_GATEWAY_API_KEY: z.string().min(1),
   AI_GATEWAY_BASE_URL: z.string().url().default("https://ai-gateway.vercel.sh/v1"),
-  AI_MODEL: z.string().default("xai/grok-code-fast-1"),
+  // Default to a current Vercel AI Gateway model. The previous default
+  // (`xai/grok-code-fast-1`) has been removed by xAI/the gateway. Override
+  // via the `AI_MODEL` env var when needed.
+  AI_MODEL: z.string().default("xai/grok-4.1-fast-non-reasoning"),
   STORAGE_BUCKET_URL: z.string().url().optional(),
   NEXT_PUBLIC_SITE_URL: z.string().url(),
   EXCEL_UPLOAD_MAX_MB: z.string().default("15"),

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback, useMemo, type DragEvent, type FormEvent } from "react";
+import { useState, useCallback, useMemo, useRef, type FormEvent } from "react";
 import * as XLSX from "xlsx";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
+import { useFileDropzone } from "@/lib/use-file-dropzone";
 
 const ACCEPTED_TYPES = [
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -53,12 +54,12 @@ type ImportStreamEvent =
   | { type: "error"; message: string };
 
 export function ExcelUpload() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState("");
   const [rowCount, setRowCount] = useState(0);
   const [columns, setColumns] = useState<string[]>([]);
   const [previewRows, setPreviewRows] = useState<Record<string, unknown>[]>([]);
   const [regenerateAi, setRegenerateAi] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [dragError, setDragError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -97,31 +98,9 @@ export function ExcelUpload() {
     setPreviewRows(json.slice(0, 5));
   }, []);
 
-  const handleDragOver = useCallback((e: DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragEnter = useCallback((e: DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: DragEvent<HTMLLabelElement>) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-
-      const file = e.dataTransfer.files[0];
+  const handleDroppedFiles = useCallback(
+    (files: File[]) => {
+      const file = files[0];
       if (!file) return;
 
       if (!isAcceptedFile(file)) {
@@ -132,7 +111,7 @@ export function ExcelUpload() {
       setDragError("");
 
       // Update the form's file input so it is included in the FormData submission
-      const input = e.currentTarget.querySelector<HTMLInputElement>('input[type="file"]');
+      const input = fileInputRef.current;
       if (input) {
         const dt = new DataTransfer();
         dt.items.add(file);
@@ -143,6 +122,10 @@ export function ExcelUpload() {
     },
     [handleFileChange],
   );
+
+  const { isDragging, dropHandlers } = useFileDropzone<HTMLLabelElement>({
+    onFiles: handleDroppedFiles,
+  });
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -280,12 +263,10 @@ export function ExcelUpload() {
               ? "border-[hsl(var(--foreground))] bg-[hsl(var(--foreground))]/5 text-[hsl(var(--foreground))]"
               : "border-[hsl(var(--border))] text-[hsl(var(--muted))] hover:border-[hsl(var(--foreground))]",
           )}
-          onDragOver={handleDragOver}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+          {...dropHandlers}
         >
           <input
+            ref={fileInputRef}
             type="file"
             name="file"
             accept=".xlsx,.xls,.csv"
